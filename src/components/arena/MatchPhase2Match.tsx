@@ -4,6 +4,7 @@ import { VocabWord } from '../../types/vocab';
 import { TimeDecayScoreBar } from '../common/TimeDecayScoreBar';
 import { audioService } from '../../services/audio';
 import { BotDifficulty, BotAIService } from '../../services/botAi';
+import { shuffle } from '../../services/questionGen';
 
 interface MatchPhase2MatchProps {
   words: VocabWord[];
@@ -44,10 +45,8 @@ export const MatchPhase2Match: React.FC<MatchPhase2MatchProps> = ({
 
   // Initialize shuffled columns
   useEffect(() => {
-    const shuffledLeft = [...words].sort(() => 0.5 - Math.random());
-    const shuffledRight = [...words]
-      .map((w) => ({ id: w.id, meaning_vi: w.meaning_vi }))
-      .sort(() => 0.5 - Math.random());
+    const shuffledLeft = shuffle(words);
+    const shuffledRight = shuffle(words.map((w) => ({ id: w.id, meaning_vi: w.meaning_vi })));
 
     setLeftWords(shuffledLeft);
     setRightMeanings(shuffledRight);

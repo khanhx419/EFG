@@ -4,6 +4,7 @@ export type WordLengthMode = 3 | 5 | 10; // 3 từ (Nhanh), 5 từ (Tiêu chuẩ
 
 export type GamePhase = 
   | 'lobby'
+  | 'countdown'       // Đếm ngược 5s & thuật toán xáo trộn từ vựng theo Vocab-Dex
   | 'phase1_memo'     // Giai đoạn 1: Ghi nhớ (60s)
   | 'phase2_matching' // Giai đoạn 2: Nối từ & Nghĩa
   | 'phase3_spelling' // Giai đoạn 3: Viết từ theo nghĩa / Dictation

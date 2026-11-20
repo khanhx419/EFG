@@ -39,32 +39,27 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   const handleLaunchMatch = () => {
-    let matchWords: VocabWord[] = [];
+    let candidatePool: VocabWord[] = [];
     let title: CEFRLevel | 'Custom' = selectedLevel;
 
     if (preselectedWords && preselectedWords.length > 0) {
-      matchWords = [...preselectedWords];
+      candidatePool = [...preselectedWords];
       title = (preselectedDeckTitle as CEFRLevel) || 'Custom';
     } else if (deckSource === 'standard') {
-      const pool = vocabularies.filter((w) => w.cefr_level === selectedLevel);
-      // Randomly pick wordCount words from pool
-      const shuffled = [...pool].sort(() => 0.5 - Math.random());
-      matchWords = shuffled.slice(0, Math.min(wordCount, shuffled.length));
+      candidatePool = vocabularies.filter((w) => w.cefr_level === selectedLevel);
       title = selectedLevel;
     } else {
       const customDeck = customDecks.find((d) => d.id === selectedCustomDeckId);
       if (customDeck) {
-        const pool = vocabularies.filter((w) => customDeck.wordIds.includes(w.id));
-        const shuffled = [...pool].sort(() => 0.5 - Math.random());
-        matchWords = shuffled.slice(0, Math.min(wordCount, shuffled.length));
+        candidatePool = vocabularies.filter((w) => customDeck.wordIds.includes(w.id));
         title = 'Custom';
       }
     }
 
-    if (matchWords.length === 0) return;
+    if (candidatePool.length === 0) return;
 
     onStartMatch(
-      matchWords,
+      candidatePool,
       difficulty,
       deckSource === 'custom' ? 'custom_deck' : 'pvp_bot',
       title,

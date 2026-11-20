@@ -11,10 +11,12 @@ import {
   ArrowLeft, 
   Sparkles,
   Layers,
-  Check
+  Check,
+  Search
 } from 'lucide-react';
 import { CEFRLevel, CustomDeck, VocabWord } from '../../types/vocab';
 import { audioService } from '../../services/audio';
+import { pickSessionWords } from '../../services/questionGen';
 
 interface SelfStudyViewProps {
   vocabularies: VocabWord[];
@@ -51,12 +53,15 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
   const [newDeckName, setNewDeckName] = useState<string>('');
   const [newDeckDesc, setNewDeckDesc] = useState<string>('');
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
+  const [deckSearchQuery, setDeckSearchQuery] = useState<string>('');
+  const [deckLevelFilter, setDeckLevelFilter] = useState<CEFRLevel | 'ALL'>('ALL');
 
-  // Start study session for standard CEFR level
+  // Start study session for standard CEFR level (smart 10-word SRS batch)
   const startStandardStudy = (lvl: CEFRLevel) => {
     const words = vocabularies.filter((w) => w.cefr_level === lvl);
     if (words.length === 0) return;
-    setStudyWords(words);
+    setActiveDeck(null);
+    setStudyWords(pickSessionWords(words, Math.min(10, words.length)));
     setStudyWordIndex(0);
     setSpellingInput('');
     setSpellingFeedback('idle');
@@ -413,7 +418,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => onStart1v1Match(wordsInLvl, `Cấp ${lvl}`)}
+                        onClick={() => onStart1v1Match(wordsInLvl, lvl)}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition"
                         title="Đưa bộ này vào đấu 1v1"
                       >
@@ -569,8 +574,47 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                   <span className="text-[11px] text-slate-400">Tối thiểu 3 từ, tối đa 10 từ</span>
                 </div>
 
+                <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={deckSearchQuery}
+                      onChange={(e) => setDeckSearchQuery(e.target.value)}
+                      placeholder="Tìm từ tiếng Anh hoặc nghĩa..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1 overflow-x-auto">
+                    {(['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as (CEFRLevel | 'ALL')[]).map((lvl) => (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setDeckLevelFilter(lvl)}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+                          deckLevelFilter === lvl
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50/50">
-                  {vocabularies.map((w) => {
+                  {vocabularies
+                    .filter((w) => {
+                      if (deckLevelFilter !== 'ALL' && w.cefr_level !== deckLevelFilter) return false;
+                      if (deckSearchQuery.trim()) {
+                        const q = deckSearchQuery.toLowerCase().trim();
+                        return w.word.toLowerCase().includes(q) || w.meaning_vi.toLowerCase().includes(q);
+                      }
+                      return true;
+                    })
+                    .slice(0, 120)
+                    .map((w) => {
                     const isSelected = selectedWordIds.includes(w.id);
                     return (
                       <button
@@ -585,6 +629,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                       >
                         <div className="truncate pr-1">
                           <span className="font-mono">{w.word}</span>
+                          <span className="ml-1 text-[9px] text-slate-400 font-semibold">{w.cefr_level}</span>
                           <span className="block text-[10px] text-slate-400 truncate">{w.meaning_vi}</span>
                         </div>
                         {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}

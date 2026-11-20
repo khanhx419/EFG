@@ -32,15 +32,26 @@ export const VocabDexView: React.FC<VocabDexViewProps> = ({
   const [filterType, setFilterType] = useState<'all' | 'collected' | 'due' | 'locked'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeWordModal, setActiveWordModal] = useState<VocabWord | null>(null);
+  const [visibleCount, setVisibleCount] = useState<number>(48);
 
   const levels: (CEFRLevel | 'ALL')[] = ['ALL', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const total = vocabularies.length;
-    const collected = vocabularies.filter((w) => w.isCollected).length;
-    const due = vocabularies.filter((w) => w.isCollected && SRSService.isDueForReview(w.srs_status)).length;
-    return { total, collected, due };
+  // Calculate statistics & per-level counts in a single pass (fast for 10,000+ words)
+  const { stats, levelCounts } = useMemo(() => {
+    let collected = 0;
+    let due = 0;
+    const counts: Record<CEFRLevel, number> = { A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
+    for (const w of vocabularies) {
+      counts[w.cefr_level] = (counts[w.cefr_level] || 0) + 1;
+      if (w.isCollected) {
+        collected++;
+        if (SRSService.isDueForReview(w.srs_status)) due++;
+      }
+    }
+    return {
+      stats: { total: vocabularies.length, collected, due },
+      levelCounts: counts,
+    };
   }, [vocabularies]);
 
   // Filtered vocabulary list
@@ -125,14 +136,19 @@ export const VocabDexView: React.FC<VocabDexViewProps> = ({
           {levels.map((lvl) => (
             <button
               key={lvl}
-              onClick={() => setSelectedLevel(lvl)}
+              onClick={() => {
+                setSelectedLevel(lvl);
+                setVisibleCount(48);
+              }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
                 selectedLevel === lvl
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
               }`}
             >
-              {lvl === 'ALL' ? 'Tất cả cấp độ' : `Cấp ${lvl}`}
+              {lvl === 'ALL'
+                ? `Tất cả (${vocabularies.length.toLocaleString('vi-VN')})`
+                : `Cấp ${lvl} (${(levelCounts[lvl] || 0).toLocaleString('vi-VN')})`}
             </button>
           ))}
         </div>
@@ -203,8 +219,9 @@ export const VocabDexView: React.FC<VocabDexViewProps> = ({
           <p className="text-xs text-slate-400">Hãy thử đổi cấp độ hoặc từ khóa tìm kiếm</p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filteredWords.map((word) => {
+          {filteredWords.slice(0, visibleCount).map((word) => {
             const isDue = word.isCollected && SRSService.isDueForReview(word.srs_status);
             const retention = SRSService.calculateRetention(word.srs_status);
 
@@ -313,6 +330,18 @@ export const VocabDexView: React.FC<VocabDexViewProps> = ({
             );
           })}
         </div>
+        {visibleCount < filteredWords.length && (
+          <div className="flex justify-center pt-2">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((prev) => prev + 48)}
+              className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition"
+            >
+              Xem thêm ({filteredWords.length - visibleCount} từ còn lại)
+            </button>
+          </div>
+        )}
+        </>
       )}
 
       {/* Word Detail Modal */}

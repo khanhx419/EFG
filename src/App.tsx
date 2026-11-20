@@ -178,6 +178,7 @@ export const App: React.FC = () => {
             accentPreference={userProfile.accentPreference}
             initialMatchWords={arenaWords}
             initialDeckTitle={arenaTitle}
+            recentWordIds={matchHistory[0]?.words.map((w) => w.wordId) || []}
           />
         )}
 
@@ -216,6 +217,7 @@ export const App: React.FC = () => {
         isOpen={isPlacementOpen}
         onClose={() => setIsPlacementOpen(false)}
         onComplete={handleCompletePlacement}
+        vocabularies={vocabularies}
       />
 
       {/* Phonetics & Stress Rules Quick Reference Modal */}

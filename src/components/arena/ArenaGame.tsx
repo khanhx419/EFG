@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CEFRLevel, CustomDeck, GamePhase, MatchHistoryItem, MatchWordStat, VocabWord, WordLengthMode } from '../../types/vocab';
 import { BotDifficulty } from '../../services/botAi';
 import { MatchLobby } from './MatchLobby';
+import { MatchCountdown } from './MatchCountdown';
 import { MatchPhase1Memo } from './MatchPhase1Memo';
 import { MatchPhase2Match } from './MatchPhase2Match';
 import { MatchPhase3Spell } from './MatchPhase3Spell';
@@ -18,6 +19,7 @@ interface ArenaGameProps {
   accentPreference: 'en-US' | 'en-GB';
   initialMatchWords?: VocabWord[];
   initialDeckTitle?: string;
+  recentWordIds?: string[];
 }
 
 export const ArenaGame: React.FC<ArenaGameProps> = ({
@@ -29,18 +31,24 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
   onViewHistory,
   accentPreference,
   initialMatchWords,
-  initialDeckTitle
+  initialDeckTitle,
+  recentWordIds = []
 }) => {
-  const [phase, setPhase] = useState<GamePhase>(initialMatchWords ? 'phase1_memo' : 'lobby');
-  const [matchWords, setMatchWords] = useState<VocabWord[]>(initialMatchWords || []);
+  const [phase, setPhase] = useState<GamePhase>(initialMatchWords ? 'countdown' : 'lobby');
+  const [candidatePool, setCandidatePool] = useState<VocabWord[]>(initialMatchWords || []);
+  const [matchWords, setMatchWords] = useState<VocabWord[]>([]);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
   const [matchMode, setMatchMode] = useState<'pvp_bot' | 'custom_deck'>('pvp_bot');
   const [levelTitle, setLevelTitle] = useState<CEFRLevel | 'Custom'>(
     (initialDeckTitle as CEFRLevel) || userCurrentLevel
   );
-  const [wordCount, setWordCount] = useState<WordLengthMode>(
-    (initialMatchWords?.length as WordLengthMode) || 5
-  );
+  const [wordCount, setWordCount] = useState<WordLengthMode>(() => {
+    if (!initialMatchWords) return 5;
+    if (initialMatchWords.length <= 10) {
+      return Math.max(3, initialMatchWords.length) as WordLengthMode;
+    }
+    return 5;
+  });
 
   // Match score accumulator
   const [playerScore, setPlayerScore] = useState<number>(0);
@@ -54,15 +62,16 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
   // Final match result
   const [finalResult, setFinalResult] = useState<MatchHistoryItem | null>(null);
 
-  // Start match from Lobby
+  // Start match from Lobby -> enter 5s Countdown & Vocab-Dex shuffle phase
   const handleStartMatch = (
-    words: VocabWord[],
+    pool: VocabWord[],
     diff: BotDifficulty,
     mode: 'pvp_bot' | 'custom_deck',
     title: CEFRLevel | 'Custom',
     count: WordLengthMode
   ) => {
-    setMatchWords(words);
+    setCandidatePool(pool);
+    setMatchWords([]);
     setDifficulty(diff);
     setMatchMode(mode);
     setLevelTitle(title);
@@ -75,6 +84,12 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     setMatchWordStats([]);
     setFinalResult(null);
 
+    setPhase('countdown');
+  };
+
+  // Countdown -> Phase 1
+  const handleCountdownReady = (preparedWords: VocabWord[]) => {
+    setMatchWords(preparedWords);
     setPhase('phase1_memo');
   };
 
@@ -160,6 +175,17 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
           onStartMatch={handleStartMatch}
           preselectedWords={initialMatchWords}
           preselectedDeckTitle={initialDeckTitle}
+        />
+      )}
+
+      {phase === 'countdown' && (
+        <MatchCountdown
+          pool={candidatePool}
+          allVocabularies={vocabularies}
+          wordCount={wordCount}
+          recentWordIds={recentWordIds}
+          levelTitle={levelTitle === 'Custom' ? 'Bộ từ tự tạo' : `CEFR Cấp ${levelTitle}`}
+          onReady={handleCountdownReady}
         />
       )}
 

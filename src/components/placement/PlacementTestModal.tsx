@@ -1,30 +1,44 @@
-import React, { useState } from 'react';
-import { X, CheckCircle2, AlertCircle, ArrowRight, Award, Compass, Zap, RotateCcw } from 'lucide-react';
-import { PLACEMENT_QUESTIONS } from '../../data/placementData';
-import { CEFRLevel, UserProfile } from '../../types/vocab';
+import React, { useState, useEffect } from 'react';
+import { X, CheckCircle2, ArrowRight, Award, Compass, Zap, RotateCcw } from 'lucide-react';
+import { CEFRLevel, PlacementQuestion, UserProfile, VocabWord } from '../../types/vocab';
 import { audioService } from '../../services/audio';
+import { generatePlacementTest } from '../../services/questionGen';
 
 interface PlacementTestModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: (level: CEFRLevel, roadmap: UserProfile['recommendedRoadmap']) => void;
+  vocabularies: VocabWord[];
 }
 
 export const PlacementTestModal: React.FC<PlacementTestModalProps> = ({
   isOpen,
   onClose,
-  onComplete
+  onComplete,
+  vocabularies
 }) => {
+  const [questions, setQuestions] = useState<PlacementQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [calculatedLevel, setCalculatedLevel] = useState<CEFRLevel | null>(null);
   const [roadmapResult, setRoadmapResult] = useState<UserProfile['recommendedRoadmap'] | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen && vocabularies.length > 0) {
+      setQuestions(generatePlacementTest(vocabularies, 2));
+      setCurrentIndex(0);
+      setSelectedAnswers({});
+      setIsSubmitted(false);
+      setCalculatedLevel(null);
+      setRoadmapResult(null);
+    }
+  }, [isOpen, vocabularies]);
 
-  const currentQ = PLACEMENT_QUESTIONS[currentIndex];
-  const totalQuestions = PLACEMENT_QUESTIONS.length;
+  if (!isOpen || questions.length === 0) return null;
+
+  const currentQ = questions[currentIndex];
+  const totalQuestions = questions.length;
   const isLast = currentIndex === totalQuestions - 1;
 
   const handleSelectOption = (optIndex: number) => {
@@ -53,24 +67,29 @@ export const PlacementTestModal: React.FC<PlacementTestModalProps> = ({
       C2: { correct: 0, total: 0 },
     };
 
-    PLACEMENT_QUESTIONS.forEach((q, idx) => {
+    questions.forEach((q, idx) => {
       levelScores[q.level].total += 1;
       if (selectedAnswers[idx] === q.correctIndex) {
         levelScores[q.level].correct += 1;
       }
     });
 
-    // Determine highest level where candidate scores at least 50-100%
+    const passed = (lvl: CEFRLevel) => {
+      const s = levelScores[lvl];
+      return s.total > 0 && s.correct / s.total >= 0.6;
+    };
+
+    // Determine highest level where candidate scores >= 60%
     let detectedLevel: CEFRLevel = 'A1';
-    if (levelScores.C2.correct >= 1 && levelScores.C1.correct >= 1) {
+    if (passed('C2') && passed('C1')) {
       detectedLevel = 'C2';
-    } else if (levelScores.C1.correct >= 1 && levelScores.B2.correct >= 1) {
+    } else if (passed('C1') && passed('B2')) {
       detectedLevel = 'C1';
-    } else if (levelScores.B2.correct >= 1 && levelScores.B1.correct >= 1) {
+    } else if (passed('B2') && passed('B1')) {
       detectedLevel = 'B2';
-    } else if (levelScores.B1.correct >= 1 && levelScores.A2.correct >= 1) {
+    } else if (passed('B1') && passed('A2')) {
       detectedLevel = 'B1';
-    } else if (levelScores.A2.correct >= 1) {
+    } else if (passed('A2')) {
       detectedLevel = 'A2';
     } else {
       detectedLevel = 'A1';
@@ -130,6 +149,7 @@ export const PlacementTestModal: React.FC<PlacementTestModalProps> = ({
   };
 
   const handleRestart = () => {
+    setQuestions(generatePlacementTest(vocabularies, 2));
     setSelectedAnswers({});
     setCurrentIndex(0);
     setIsSubmitted(false);

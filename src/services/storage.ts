@@ -1,10 +1,13 @@
-import { VocabWord, CustomDeck, MatchHistoryItem, UserProfile } from '../types/vocab';
-import { INITIAL_VOCABULARIES } from '../data/vocabularies';
+import { VocabWord, CustomDeck, MatchHistoryItem, UserProfile, SRSStatus } from '../types/vocab';
+import { loadFullVocabularies } from '../data/bank/loader';
 import { SRSService } from './srs';
+
+type ProgressMap = Record<string, { isCollected: boolean; srs_status: SRSStatus }>;
 
 const DB_NAME = 'VocabClashDB';
 const DB_VERSION = 1;
-const VOCAB_KEY = 'vocabclash_words';
+const VOCAB_KEY = 'vocabclash_words'; // legacy (full word array) – migrated to PROGRESS_KEY
+const PROGRESS_KEY = 'vocabclash_progress_v2';
 const DECKS_KEY = 'vocabclash_custom_decks';
 const HISTORY_KEY = 'vocabclash_match_history';
 const PROFILE_KEY = 'vocabclash_user_profile';
@@ -85,38 +88,85 @@ class StorageService {
   }
 
   // ================= VOCABULARY =================
-  public async getVocabularies(): Promise<VocabWord[]> {
-    // Try IndexedDB first
-    const idbData = await this.getIDBItem<VocabWord[]>(VOCAB_KEY);
-    if (idbData && Array.isArray(idbData) && idbData.length > 0) {
-      return this.checkDueStatus(idbData);
-    }
-
-    // Try LocalStorage
+  /**
+   * Content (words, meanings, sentences) always comes from code (ALL_VOCABULARIES),
+   * only the learner's PROGRESS (isCollected + SRS) is persisted.
+   * → Adding new words to the bank automatically shows up for existing users.
+   */
+  private async loadProgress(): Promise<ProgressMap | null> {
+    const idbData = await this.getIDBItem<ProgressMap>(PROGRESS_KEY);
+    if (idbData && typeof idbData === 'object') return idbData;
     try {
-      const lsData = localStorage.getItem(VOCAB_KEY);
-      if (lsData) {
-        const parsed = JSON.parse(lsData);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return this.checkDueStatus(parsed);
-        }
-      }
+      const ls = localStorage.getItem(PROGRESS_KEY);
+      if (ls) return JSON.parse(ls) as ProgressMap;
     } catch {
-      // Fallback to default
+      // ignore
     }
-
-    // Initialize with default
-    await this.saveVocabularies(INITIAL_VOCABULARIES);
-    return INITIAL_VOCABULARIES;
+    return null;
   }
 
-  public async saveVocabularies(words: VocabWord[]): Promise<void> {
-    await this.setIDBItem(VOCAB_KEY, words);
+  /** Migrate legacy storage (full word array) into a progress map. */
+  private async migrateLegacy(): Promise<ProgressMap | null> {
+    let legacy: VocabWord[] | null = await this.getIDBItem<VocabWord[]>(VOCAB_KEY);
+    if (!legacy) {
+      try {
+        const ls = localStorage.getItem(VOCAB_KEY);
+        if (ls) legacy = JSON.parse(ls);
+      } catch {
+        // ignore
+      }
+    }
+    if (!legacy || !Array.isArray(legacy) || legacy.length === 0) return null;
+
+    const progress = this.toProgress(legacy);
+    await this.saveProgress(progress);
     try {
-      localStorage.setItem(VOCAB_KEY, JSON.stringify(words));
+      localStorage.removeItem(VOCAB_KEY);
+    } catch {
+      // ignore
+    }
+    return progress;
+  }
+
+  private toProgress(words: VocabWord[]): ProgressMap {
+    const map: ProgressMap = {};
+    words.forEach((w) => {
+      const touched =
+        w.isCollected || w.srs_status.state !== 'new' || w.srs_status.correctCount + w.srs_status.wrongCount > 0;
+      if (touched) map[w.id] = { isCollected: w.isCollected, srs_status: w.srs_status };
+    });
+    return map;
+  }
+
+  private async saveProgress(progress: ProgressMap): Promise<void> {
+    await this.setIDBItem(PROGRESS_KEY, progress);
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
     } catch {
       // Ignore quota errors
     }
+  }
+
+  public async getVocabularies(): Promise<VocabWord[]> {
+    const allWords = await loadFullVocabularies();
+    let progress = await this.loadProgress();
+    if (!progress) progress = await this.migrateLegacy();
+
+    if (!progress) {
+      // First launch: seed progress from curated defaults
+      await this.saveVocabularies(allWords);
+      return this.checkDueStatus(allWords);
+    }
+
+    const merged = allWords.map((w) => {
+      const p = progress![w.id];
+      return p ? { ...w, isCollected: p.isCollected, srs_status: { ...w.srs_status, ...p.srs_status } } : w;
+    });
+    return this.checkDueStatus(merged);
+  }
+
+  public async saveVocabularies(words: VocabWord[]): Promise<void> {
+    await this.saveProgress(this.toProgress(words));
   }
 
   private checkDueStatus(words: VocabWord[]): VocabWord[] {
