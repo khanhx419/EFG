@@ -13,33 +13,33 @@ export const TimeDecayScoreBar: React.FC<TimeDecayScoreBarProps> = ({
   currentScore,
   combo,
   maxScore = 1000,
-  minScore = 300,
+  minScore = 0,
   label = 'Điểm phản xạ'
 }) => {
   // Percentage from minScore to maxScore
-  const fraction = Math.max(0, Math.min(1, (currentScore - minScore) / (maxScore - minScore)));
+  const fraction = Math.max(0, Math.min(1, (currentScore - minScore) / Math.max(1, (maxScore - minScore))));
   const percentage = Math.round(fraction * 100);
 
   // 3 Color zones requirement:
   // 1000 – 750: Emerald/Green
-  // 749 – 500: Amber/Orange
-  // < 500: Rose/Red
+  // 749 – 350: Amber/Orange
+  // < 350: Rose/Red
   let colorClass = 'bg-emerald-500';
   let badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-  let zoneText = 'Xuất sắc';
+  let zoneText = 'Xuất sắc (1000)';
 
   if (currentScore >= 750) {
     colorClass = 'bg-emerald-500 shadow-emerald-200';
     badgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    zoneText = 'Phản xạ vàng';
-  } else if (currentScore >= 500) {
+    zoneText = 'Phản xạ vàng (1000)';
+  } else if (currentScore >= 350) {
     colorClass = 'bg-amber-500 shadow-amber-200';
     badgeBg = 'bg-amber-50 text-amber-700 border-amber-200';
     zoneText = 'Tốc độ vừa';
   } else {
     colorClass = 'bg-rose-500 shadow-rose-200';
     badgeBg = 'bg-rose-50 text-rose-700 border-rose-200';
-    zoneText = 'Sắp hết tối ưu';
+    zoneText = currentScore <= 0 ? 'Hết giờ (0 pts)' : 'Sắp hết giờ';
   }
 
   // Bonus for combo >= 3 is +50
@@ -49,7 +49,7 @@ export const TimeDecayScoreBar: React.FC<TimeDecayScoreBarProps> = ({
     <div className="w-full bg-white rounded-xl p-3 border border-slate-200 shadow-sm transition-all">
       <div className="flex items-center justify-between mb-1.5 text-xs font-medium">
         <div className="flex items-center gap-2">
-          <span className="text-slate-600 flex items-center gap-1">
+          <span className="text-slate-600 flex items-center gap-1 font-bold">
             <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
             {label}
           </span>
@@ -77,12 +77,13 @@ export const TimeDecayScoreBar: React.FC<TimeDecayScoreBarProps> = ({
       <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/70">
         <div
           className={`h-full rounded-full transition-all duration-100 ease-linear shadow-sm ${colorClass}`}
-          style={{ width: `${Math.max(5, percentage)}%` }}
+          style={{ width: `${Math.max(0, percentage)}%` }}
         />
       </div>
 
       <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500">
-        <span>Tối thiểu: {minScore} pts</span>
+        <span>Tối thiểu: 0 pts (10s)</span>
+        <span className="text-emerald-600 font-semibold">1.5s đầu giữ nguyên 1000 pts</span>
         <span>Mốc tối đa: {maxScore} pts</span>
       </div>
     </div>

@@ -36,7 +36,7 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
 }) => {
   const [phase, setPhase] = useState<GamePhase>(initialMatchWords ? 'countdown' : 'lobby');
   const [candidatePool, setCandidatePool] = useState<VocabWord[]>(initialMatchWords || []);
-  const [matchWords, setMatchWords] = useState<VocabWord[]>([]);
+  const [allMatchWords, setAllMatchWords] = useState<VocabWord[]>([]);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
   const [matchMode, setMatchMode] = useState<'pvp_bot' | 'custom_deck'>('pvp_bot');
   const [levelTitle, setLevelTitle] = useState<CEFRLevel | 'Custom'>(
@@ -44,11 +44,17 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
   );
   const [wordCount, setWordCount] = useState<WordLengthMode>(() => {
     if (!initialMatchWords) return 5;
-    if (initialMatchWords.length <= 10) {
-      return Math.max(3, initialMatchWords.length) as WordLengthMode;
-    }
-    return 5;
+    if (initialMatchWords.length <= 3) return 3;
+    if (initialMatchWords.length <= 5) return 5;
+    if (initialMatchWords.length <= 10) return 10;
+    if (initialMatchWords.length <= 15) return 15;
+    return 20;
   });
+
+  // Batching / Sub-round settings (e.g. 5 words per batch from a 20-word deck)
+  const [batchSize, setBatchSize] = useState<number>(5);
+  const [currentBatchIndex, setCurrentBatchIndex] = useState<number>(0);
+  const [timePerQuestion, setTimePerQuestion] = useState<number>(10);
 
   // Match score accumulator
   const [playerScore, setPlayerScore] = useState<number>(0);
@@ -68,14 +74,20 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     diff: BotDifficulty,
     mode: 'pvp_bot' | 'custom_deck',
     title: CEFRLevel | 'Custom',
-    count: WordLengthMode
+    count: WordLengthMode,
+    customSettings?: { perRoundCount?: number; timePerQuestion?: number }
   ) => {
     setCandidatePool(pool);
-    setMatchWords([]);
+    setAllMatchWords([]);
     setDifficulty(diff);
     setMatchMode(mode);
     setLevelTitle(title);
     setWordCount(count);
+
+    const bSize = customSettings?.perRoundCount || (count > 5 ? 5 : count);
+    setBatchSize(bSize);
+    setCurrentBatchIndex(0);
+    setTimePerQuestion(customSettings?.timePerQuestion || 10);
 
     setPlayerScore(0);
     setBotScore(0);
@@ -89,9 +101,20 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
 
   // Countdown -> Phase 1
   const handleCountdownReady = (preparedWords: VocabWord[]) => {
-    setMatchWords(preparedWords);
+    setAllMatchWords(preparedWords);
+    setCurrentBatchIndex(0);
     setPhase('phase1_memo');
   };
+
+  // Current batch slice
+  const currentBatchWords = React.useMemo(() => {
+    if (allMatchWords.length === 0) return [];
+    const start = currentBatchIndex * batchSize;
+    const end = Math.min(start + batchSize, allMatchWords.length);
+    return allMatchWords.slice(start, end);
+  }, [allMatchWords, currentBatchIndex, batchSize]);
+
+  const totalBatches = Math.max(1, Math.ceil(allMatchWords.length / batchSize));
 
   // Phase 1 -> Phase 2
   const handlePhase1Complete = () => {
@@ -103,7 +126,7 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     setPlayerScore(pScore);
     setBotScore(bScore);
     setCurrentCombo(comboVal);
-    setMaxCombo(Math.max(maxCombo, comboVal));
+    setMaxCombo((prev) => Math.max(prev, comboVal));
     setPhase('phase3_spelling');
   };
 
@@ -117,47 +140,57 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     setPlayerScore(pScore);
     setBotScore(bScore);
     setCurrentCombo(comboVal);
-    setMaxCombo(Math.max(maxCombo, comboVal));
-    setMatchWordStats(wordStats);
+    setMaxCombo((prev) => Math.max(prev, comboVal));
+    setMatchWordStats((prev) => [...prev, ...wordStats]);
     setPhase('phase4_context');
   };
 
-  // Phase 4 -> Result
+  // Phase 4 -> Next Batch OR Final Result
   const handlePhase4Complete = (finalPScore: number, finalBScore: number, finalMaxCombo: number) => {
     setPlayerScore(finalPScore);
     setBotScore(finalBScore);
     const overallMaxCombo = Math.max(maxCombo, finalMaxCombo);
+    setMaxCombo(overallMaxCombo);
 
-    // Calculate accuracy based on incorrect attempts in matchWordStats
-    const incorrectCount = matchWordStats.filter((s) => s.wasIncorrect).length;
-    const accuracy = Math.round(
-      Math.max(20, ((matchWords.length - incorrectCount) / Math.max(1, matchWords.length)) * 100)
-    );
+    // Check if there are more batches left
+    const nextBatchIndex = currentBatchIndex + 1;
+    if (nextBatchIndex * batchSize < allMatchWords.length) {
+      // Advance to next batch: Start Memo phase for next sub-round
+      setCurrentBatchIndex(nextBatchIndex);
+      setPhase('phase1_memo');
+    } else {
+      // All batches complete! Final score and stats
+      const totalWords = allMatchWords.length > 0 ? allMatchWords.length : wordCount;
+      const incorrectCount = matchWordStats.filter((s) => s.wasIncorrect).length;
+      const accuracy = Math.round(
+        Math.max(20, ((totalWords - incorrectCount) / Math.max(1, totalWords)) * 100)
+      );
 
-    const historyItem: MatchHistoryItem = {
-      id: `match_${Date.now()}`,
-      date: new Date().toISOString(),
-      mode: matchMode,
-      level: levelTitle,
-      wordCount,
-      playerScore: finalPScore,
-      botScore: finalBScore,
-      isVictory: finalPScore >= finalBScore,
-      maxCombo: overallMaxCombo,
-      accuracy,
-      words: matchWordStats.length > 0 ? matchWordStats : matchWords.map((w) => ({
-        wordId: w.id,
-        word: w.word,
-        meaning_vi: w.meaning_vi,
-        wasIncorrect: false,
-        reactionTimeMs: 1800,
-        isSlow: false
-      }))
-    };
+      const historyItem: MatchHistoryItem = {
+        id: `match_${Date.now()}`,
+        date: new Date().toISOString(),
+        mode: matchMode,
+        level: levelTitle,
+        wordCount,
+        playerScore: finalPScore,
+        botScore: finalBScore,
+        isVictory: finalPScore >= finalBScore,
+        maxCombo: overallMaxCombo,
+        accuracy,
+        words: matchWordStats.length > 0 ? matchWordStats : allMatchWords.map((w) => ({
+          wordId: w.id,
+          word: w.word,
+          meaning_vi: w.meaning_vi,
+          wasIncorrect: false,
+          reactionTimeMs: 1800,
+          isSlow: false
+        }))
+      };
 
-    setFinalResult(historyItem);
-    onFinishMatch(historyItem);
-    setPhase('result');
+      setFinalResult(historyItem);
+      onFinishMatch(historyItem);
+      setPhase('result');
+    }
   };
 
   const handlePlayAgain = () => {
@@ -167,6 +200,15 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
 
   return (
     <div className="w-full">
+      {/* Sub-round batch indicator if multiple batches */}
+      {totalBatches > 1 && phase.startsWith('phase') && (
+        <div className="max-w-3xl mx-auto mb-2 text-center">
+          <span className="inline-block text-[11px] font-bold px-3 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
+            Đợt học {currentBatchIndex + 1}/{totalBatches} ({currentBatchWords.length} từ)
+          </span>
+        </div>
+      )}
+
       {phase === 'lobby' && (
         <MatchLobby
           vocabularies={vocabularies}
@@ -191,7 +233,7 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
 
       {phase === 'phase1_memo' && (
         <MatchPhase1Memo
-          words={matchWords}
+          words={currentBatchWords}
           onComplete={handlePhase1Complete}
           accentPreference={accentPreference}
         />
@@ -199,44 +241,48 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
 
       {phase === 'phase2_matching' && (
         <MatchPhase2Match
-          words={matchWords}
+          words={currentBatchWords}
           difficulty={difficulty}
           onPhaseComplete={handlePhase2Complete}
           initialPlayerScore={playerScore}
           initialBotScore={botScore}
+          timePerQuestion={timePerQuestion}
         />
       )}
 
       {phase === 'phase3_spelling' && (
         <MatchPhase3Spell
-          words={matchWords}
+          words={currentBatchWords}
           difficulty={difficulty}
           onPhaseComplete={handlePhase3Complete}
           initialPlayerScore={playerScore}
           initialBotScore={botScore}
           initialCombo={currentCombo}
           accentPreference={accentPreference}
+          timePerQuestion={timePerQuestion}
         />
       )}
 
       {phase === 'phase4_context' && (
         <MatchPhase4MCQ
-          words={matchWords}
+          words={currentBatchWords}
           difficulty={difficulty}
           onPhaseComplete={handlePhase4Complete}
           initialPlayerScore={playerScore}
           initialBotScore={botScore}
           initialCombo={currentCombo}
+          timePerQuestion={timePerQuestion}
         />
       )}
 
       {phase === 'result' && finalResult && (
         <MatchResultModal
           result={finalResult}
-          words={matchWords}
+          words={allMatchWords}
           onPlayAgain={handlePlayAgain}
           onSoloReplay={onSoloReplay}
           onViewHistory={onViewHistory}
+          onClose={handlePlayAgain}
         />
       )}
     </div>

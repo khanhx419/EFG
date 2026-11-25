@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, CheckCircle2, XCircle, Sparkles } from 'lucide-react';
+import { Bot, CheckCircle2, XCircle, SkipForward } from 'lucide-react';
 import { VocabWord } from '../../types/vocab';
 import { TimeDecayScoreBar } from '../common/TimeDecayScoreBar';
 import { audioService } from '../../services/audio';
@@ -12,6 +12,7 @@ interface MatchPhase4MCQProps {
   initialPlayerScore: number;
   initialBotScore: number;
   initialCombo: number;
+  timePerQuestion?: number; // mặc định 10s
 }
 
 export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
@@ -20,11 +21,13 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
   onPhaseComplete,
   initialPlayerScore,
   initialBotScore,
-  initialCombo
+  initialCombo,
+  timePerQuestion = 10
 }) => {
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
+  const [isTimedOut, setIsTimedOut] = useState<boolean>(false);
 
   // Scores & Combo
   const [playerScore, setPlayerScore] = useState<number>(initialPlayerScore);
@@ -36,6 +39,7 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
   const [currentDecayScore, setCurrentDecayScore] = useState<number>(1000);
   const questionStartTimeRef = useRef<number>(Date.now());
   const decayTimerRef = useRef<number | null>(null);
+  const autoTimeoutRef = useRef<number | null>(null);
 
   const currentWord = words[currentWordIndex];
   const q = currentWord?.context_question;
@@ -46,23 +50,52 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
     setCurrentDecayScore(1000);
     setSelectedOption(null);
     setIsAnswered(false);
+    setIsTimedOut(false);
   }, [currentWordIndex]);
 
-  // Real-time decay tick
+  // Real-time decay tick:
+  // Giữ nguyên 1000 pts trong 1.5s đầu để người nhanh lấy trọn vẹn điểm!
+  // Sau đó tụt dần về 0 pts trong tổng thời gian timePerQuestion (mặc định 10s)
   useEffect(() => {
     decayTimerRef.current = window.setInterval(() => {
-      if (isAnswered) return;
+      if (isAnswered || isTimedOut) return;
       const elapsed = Date.now() - questionStartTimeRef.current;
-      const decayWindow = 8000;
-      const fraction = Math.min(1, elapsed / decayWindow);
-      const score = Math.max(300, Math.round(1000 - fraction * 700));
-      setCurrentDecayScore(score);
+      const gracePeriodMs = 1500; // 1.5s đầu giữ nguyên 1000 pts
+      const totalDurationMs = Math.max(8000, timePerQuestion * 1000);
+
+      if (elapsed <= gracePeriodMs) {
+        setCurrentDecayScore(1000);
+      } else {
+        const decayWindow = totalDurationMs - gracePeriodMs;
+        const decayElapsed = elapsed - gracePeriodMs;
+        const fraction = Math.min(1, decayElapsed / decayWindow);
+        const score = Math.max(0, Math.round(1000 - fraction * 1000));
+        setCurrentDecayScore(score);
+
+        // Khi thanh điểm chạy hết (0 điểm) mà chưa hoàn thành:
+        // Tự động tắt, hiện đáp án trong vòng 5s kèm nghĩa để người học ôn luôn!
+        if (score <= 0 && !isAnswered && !isTimedOut) {
+          handleTimeoutExpire();
+        }
+      }
     }, 100);
 
     return () => {
       if (decayTimerRef.current) clearInterval(decayTimerRef.current);
     };
-  }, [isAnswered]);
+  }, [isAnswered, isTimedOut, timePerQuestion]);
+
+  const handleTimeoutExpire = () => {
+    setIsTimedOut(true);
+    setIsAnswered(true);
+    setCombo(0);
+    audioService.playSound('wrong');
+
+    // Hiện đáp án và nghĩa trong 5s để người học kịp ôn lại trước khi qua câu tiếp theo
+    autoTimeoutRef.current = window.setTimeout(() => {
+      advanceNextQuestion(playerScore, botScore, maxCombo);
+    }, 5000);
+  };
 
   // Bot simulation for this question
   useEffect(() => {
@@ -71,13 +104,22 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
       if (botRes.isCorrect) {
         setBotScore((prev) => prev + botRes.score);
       }
-    }, 2000 + Math.random() * 2000);
+    }, 3000 + Math.random() * 2500);
 
     return () => clearTimeout(timer);
   }, [currentWordIndex, difficulty]);
 
+  const advanceNextQuestion = (pScore: number, bScore: number, mCombo: number) => {
+    if (autoTimeoutRef.current) clearTimeout(autoTimeoutRef.current);
+    if (currentWordIndex < words.length - 1) {
+      setCurrentWordIndex((prev) => prev + 1);
+    } else {
+      onPhaseComplete(pScore, bScore, mCombo);
+    }
+  };
+
   const handleSelectAnswer = (option: string) => {
-    if (isAnswered || !q) return;
+    if (isAnswered || !q || isTimedOut) return;
 
     setIsAnswered(true);
     setSelectedOption(option);
@@ -106,16 +148,23 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
 
     // Delay before next question
     setTimeout(() => {
-      if (currentWordIndex < words.length - 1) {
-        setCurrentWordIndex((prev) => prev + 1);
-      } else {
-        onPhaseComplete(newPlayerScore, botScore, Math.max(maxCombo, nextCombo));
-      }
-    }, 1100);
+      advanceNextQuestion(newPlayerScore, botScore, Math.max(maxCombo, nextCombo));
+    }, 1200);
+  };
+
+  // Nút bỏ qua từ khi thi đấu
+  const handleSkipWord = () => {
+    if (isAnswered) return;
+    setIsAnswered(true);
+    setCombo(0);
+    audioService.playSound('wrong');
+    setTimeout(() => {
+      advanceNextQuestion(playerScore, botScore, maxCombo);
+    }, 400);
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5 animate-fadeIn">
+    <div className="w-full max-w-3xl mx-auto space-y-4 animate-fadeIn px-2 sm:px-0">
       {/* Top Header: Scores & Phase Indicator */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
         <div>
@@ -153,20 +202,37 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
         </div>
       </div>
 
-      {/* Time Decay Score Bar */}
+      {/* Time Decay Score Bar (10s decay, 1.5s freeze at 1000) */}
       <TimeDecayScoreBar
         currentScore={currentDecayScore}
         combo={combo}
-        label="Điểm ngữ cảnh câu này"
+        minScore={0}
+        maxScore={1000}
+        label="Điểm ngữ cảnh câu này (10s)"
       />
 
       {/* Question Card */}
       {q && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-              Chọn đáp án thích hợp điền vào chỗ trống:
-            </span>
+        <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm space-y-5">
+          <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Chọn đáp án thích hợp điền vào chỗ trống:
+              </span>
+
+              {/* Nút bỏ qua từ khi thi đấu */}
+              <button
+                type="button"
+                onClick={handleSkipWord}
+                disabled={isAnswered}
+                className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 px-2.5 py-1 rounded-lg transition"
+                title="Bỏ qua từ này (chuyển câu kế tiếp)"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                <span>Bỏ qua</span>
+              </button>
+            </div>
+
             <p className="text-base sm:text-lg font-bold text-slate-900 leading-relaxed">
               {q.sentence.replace('___', '______')}
             </p>
@@ -174,6 +240,22 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
               Dịch: "{q.translation_vi}"
             </p>
           </div>
+
+          {/* Hộp thông báo hết thời gian (5s hiển thị đáp án và nghĩa để ôn lại) */}
+          {isTimedOut && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-center justify-between animate-fadeIn">
+              <div>
+                <span className="font-bold block">⏰ Hết thời gian 10s (0 pts)!</span>
+                <span>Đáp án đúng là <strong className="text-emerald-700 uppercase font-mono">{q.correctAnswer}</strong> ({currentWord.meaning_vi}). Tự chuyển câu sau 5s...</span>
+              </div>
+              <button
+                onClick={() => advanceNextQuestion(playerScore, botScore, maxCombo)}
+                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 ml-2 text-[11px]"
+              >
+                Chuyển ngay
+              </button>
+            </div>
+          )}
 
           {/* 4 Choices */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -199,7 +281,7 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
                   type="button"
                   disabled={isAnswered}
                   onClick={() => handleSelectAnswer(opt)}
-                  className={`p-4 rounded-2xl border text-left transition-all font-mono text-sm flex items-center justify-between ${btnStyle}`}
+                  className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all font-mono text-sm flex items-center justify-between ${btnStyle}`}
                 >
                   <div className="flex items-center gap-3">
                     <span

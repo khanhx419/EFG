@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Trophy, Frown, RotateCcw, Swords, History, Zap, CheckCircle2, Flame, Layers } from 'lucide-react';
+import { Trophy, Frown, RotateCcw, Swords, History, Layers, X } from 'lucide-react';
 import { VocabWord, MatchHistoryItem } from '../../types/vocab';
 import { audioService } from '../../services/audio';
 
@@ -10,6 +10,7 @@ interface MatchResultModalProps {
   onPlayAgain: () => void;
   onSoloReplay: (words: VocabWord[]) => void;
   onViewHistory: () => void;
+  onClose?: () => void;
 }
 
 export const MatchResultModal: React.FC<MatchResultModalProps> = ({
@@ -17,7 +18,8 @@ export const MatchResultModal: React.FC<MatchResultModalProps> = ({
   words,
   onPlayAgain,
   onSoloReplay,
-  onViewHistory
+  onViewHistory,
+  onClose
 }) => {
   useEffect(() => {
     if (result.isVictory) {
@@ -34,9 +36,28 @@ export const MatchResultModal: React.FC<MatchResultModalProps> = ({
     }
   }, [result.isVictory]);
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      onPlayAgain();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
       <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Nút X đóng popup ở góc trên bên phải */}
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 text-white flex items-center justify-center transition"
+          aria-label="Đóng popup"
+          title="Đóng (X)"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Banner */}
         <div
           className={`p-6 sm:p-8 text-center text-white ${
@@ -98,7 +119,6 @@ export const MatchResultModal: React.FC<MatchResultModalProps> = ({
             <div className="bg-white p-3 rounded-xl border border-slate-200 text-center">
               <span className="text-[10px] font-bold text-slate-400 block">Max Combo</span>
               <span className="text-base font-extrabold text-orange-600 font-mono flex items-center justify-center gap-1">
-                <Flame className="w-4 h-4 fill-orange-500" />
                 x{result.maxCombo}
               </span>
             </div>

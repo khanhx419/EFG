@@ -29,7 +29,7 @@ class AudioService {
     return this.isMuted;
   }
 
-  public speak(text: string, accent: 'en-US' | 'en-GB' = 'en-US', rate: number = 0.9): Promise<void> {
+  public speak(text: string, accent: 'en-US' | 'en-GB' = 'en-US', rate: number = 0.88): Promise<void> {
     return new Promise((resolve) => {
       if (this.isMuted || !this.synth) {
         resolve();
@@ -43,12 +43,21 @@ class AudioService {
       utterance.pitch = 1.0;
       utterance.lang = accent;
 
-      // Select high quality voice matching accent if available
-      const voice = this.voices.find(
-        (v) => v.lang.replace('_', '-').startsWith(accent) || (accent === 'en-US' && v.name.includes('US'))
+      // Select natural, premium high quality voices first
+      const langPrefix = accent.toLowerCase().replace('_', '-');
+      const voiceCandidates = this.voices.filter((v) =>
+        v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix)
       );
-      if (voice) {
-        utterance.voice = voice;
+
+      // Prefer natural/neural/Google/Microsoft/Apple natural sounding voices
+      const naturalVoice = voiceCandidates.find((v) =>
+        /(natural|neural|google|samantha|karen|daniel|arthur|guy|aria|jenny)/i.test(v.name)
+      ) || voiceCandidates.find((v) =>
+        !/(desktop|zira|david)/i.test(v.name)
+      ) || voiceCandidates[0] || this.voices.find((v) => v.lang.startsWith('en'));
+
+      if (naturalVoice) {
+        utterance.voice = naturalVoice;
       }
 
       utterance.onend = () => resolve();

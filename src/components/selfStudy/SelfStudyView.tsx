@@ -12,7 +12,9 @@ import {
   Sparkles,
   Layers,
   Check,
-  Search
+  Search,
+  Clock,
+  X
 } from 'lucide-react';
 import { CEFRLevel, CustomDeck, VocabWord } from '../../types/vocab';
 import { audioService } from '../../services/audio';
@@ -55,6 +57,8 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
   const [selectedWordIds, setSelectedWordIds] = useState<string[]>([]);
   const [deckSearchQuery, setDeckSearchQuery] = useState<string>('');
   const [deckLevelFilter, setDeckLevelFilter] = useState<CEFRLevel | 'ALL'>('ALL');
+  const [deckPerRoundCount, setDeckPerRoundCount] = useState<number>(5);
+  const [deckTimePerQuestion, setDeckTimePerQuestion] = useState<number>(10);
 
   // Start study session for standard CEFR level (smart 10-word SRS batch)
   const startStandardStudy = (lvl: CEFRLevel) => {
@@ -129,7 +133,9 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
       name: newDeckName.trim(),
       description: newDeckDesc.trim() || `Bộ từ vựng gồm ${selectedWordIds.length} từ`,
       createdAt: new Date().toISOString(),
-      wordIds: selectedWordIds
+      wordIds: selectedWordIds,
+      perRoundCount: deckPerRoundCount,
+      timePerQuestion: deckTimePerQuestion
     };
 
     onSaveCustomDeck(newDeck);
@@ -137,22 +143,24 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
     setNewDeckName('');
     setNewDeckDesc('');
     setSelectedWordIds([]);
+    setDeckPerRoundCount(5);
+    setDeckTimePerQuestion(10);
   };
 
   const toggleWordSelection = (id: string) => {
     if (selectedWordIds.includes(id)) {
       setSelectedWordIds(selectedWordIds.filter((wId) => wId !== id));
     } else {
-      if (selectedWordIds.length >= 10) return; // Max 10 words
+      if (selectedWordIds.length >= 30) return; // Max 30 words
       setSelectedWordIds([...selectedWordIds, id]);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-4xl mx-auto space-y-4 px-2 sm:px-4">
       {/* If currently studying */}
       {isStudying && currentWord ? (
-        <div className="max-w-2xl mx-auto space-y-5 animate-fadeIn">
+        <div className="w-full max-w-3xl mx-auto space-y-3.5 animate-fadeIn">
           {/* Top navigation back button */}
           <div className="flex items-center justify-between">
             <button
@@ -177,7 +185,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
           </div>
 
           {/* Flashcard with syllable stress and pronunciation */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm text-center space-y-5">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm text-center space-y-3.5">
             <div className="flex items-center justify-center gap-2">
               <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
                 Cấp {currentWord.cefr_level}
@@ -187,19 +195,19 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
               </span>
             </div>
 
-            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
               {currentWord.word}
             </h2>
 
             {/* Syllables Breakdown */}
-            <div className="flex items-center justify-center gap-2 flex-wrap">
+            <div className="flex items-center justify-center gap-1.5 flex-wrap">
               <span className="text-xs text-slate-400 font-semibold mr-1">Trọng âm:</span>
               {currentWord.syllables.map((syl, sIdx) => {
                 const isStressed = sIdx === currentWord.stressedIndex;
                 return (
                   <span
                     key={sIdx}
-                    className={`px-3 py-1.5 rounded-xl font-mono text-base transition ${
+                    className={`px-2.5 py-1 rounded-xl font-mono text-sm sm:text-base transition ${
                       isStressed
                         ? 'bg-emerald-600 text-white font-extrabold shadow-sm scale-105'
                         : 'bg-slate-100 text-slate-700 font-medium'
@@ -213,35 +221,39 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
             </div>
 
             {/* IPA & Pronunciation Audio */}
-            <div className="flex items-center justify-center gap-3">
-              <span className="text-sm font-mono text-slate-600 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-center gap-2.5">
+              <span className="text-xs sm:text-sm font-mono text-slate-600 bg-slate-50 px-3 py-1 rounded-xl border border-slate-200">
                 {currentWord.phonetic}
               </span>
               <button
                 type="button"
                 onClick={() => audioService.speak(currentWord.word, accentPreference)}
-                className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-semibold text-xs border border-emerald-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-semibold text-xs border border-emerald-200 transition"
               >
-                <Volume2 className="w-4 h-4" />
+                <Volume2 className="w-3.5 h-3.5" />
                 Nghe phát âm ({accentPreference})
               </button>
             </div>
 
             {/* Vietnamese Meaning */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <div className="bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                 Nghĩa tiếng Việt
               </span>
-              <p className="text-lg font-bold text-slate-800">{currentWord.meaning_vi}</p>
+              <p className="text-base sm:text-lg font-bold text-slate-800">{currentWord.meaning_vi}</p>
             </div>
 
-            {/* Example sentence */}
-            <div className="text-left bg-white p-4 rounded-2xl border border-slate-200 space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+            {/* Example sentence with contextual Vietnamese translation */}
+            <div className="text-left bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 Ví dụ thực tế:
               </span>
-              <p className="text-sm text-slate-800 font-medium">"{currentWord.example_en}"</p>
-              <p className="text-xs text-slate-500 italic">"{currentWord.example_vi}"</p>
+              <p className="text-xs sm:text-sm text-slate-800 font-medium">"{currentWord.example_en}"</p>
+              <p className="text-xs text-slate-500 italic">
+                {currentWord.example_vi
+                  ? `"${currentWord.example_vi.replace(/^Dịch:\s*/i, '').replace(/^"|"$/g, '').replace(/^Nghĩa chính:\s*/i, '')}"`
+                  : `"${currentWord.meaning_vi}"`}
+              </p>
             </div>
 
             {/* Spelling Reflex Practice Drill */}
@@ -519,10 +531,10 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
         </div>
       )}
 
-      {/* Modal: Create Custom Deck (5 - 10 words) */}
+      {/* Modal: Create Custom Deck (Tùy chỉnh thông số số từ, thời gian,...) */}
       {isCreatingDeck && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
@@ -530,19 +542,20 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">Tạo Bộ Từ Vựng Tùy Chọn</h3>
-                  <p className="text-xs text-slate-500">Chọn từ 5 đến 10 từ vựng mục tiêu cho bộ đề của bạn</p>
+                  <p className="text-xs text-slate-500">Tùy biến số từ, chia đợt học và thời gian phản xạ</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setIsCreatingDeck(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition"
+                title="Đóng (X)"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateDeck} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleCreateDeck} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Tên bộ từ vựng *</label>
                 <input
@@ -550,7 +563,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                   required
                   value={newDeckName}
                   onChange={(e) => setNewDeckName(e.target.value)}
-                  placeholder="Ví dụ: 5 từ học thuật trọng tâm B2..."
+                  placeholder="Ví dụ: 20 từ học thuật B2 ôn thi..."
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
@@ -561,17 +574,72 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                   type="text"
                   value={newDeckDesc}
                   onChange={(e) => setNewDeckDesc(e.target.value)}
-                  placeholder="Ví dụ: Ôn luyện phản xạ trước trận đấu 1v1..."
+                  placeholder="Ví dụ: Luyện phản xạ nhanh trước khi đấu 1v1..."
                   className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
+              </div>
+
+              {/* Tùy chỉnh thông số bộ từ: số từ mỗi đợt & thời gian mỗi câu */}
+              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="font-bold text-amber-950 flex items-center gap-1 mb-1">
+                    <Layers className="w-3.5 h-3.5 text-amber-700" />
+                    Chia nhỏ mỗi đợt thi đấu (Sub-round)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {[3, 5, 10].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setDeckPerRoundCount(num)}
+                        className={`px-3 py-1 rounded-lg font-bold text-xs transition ${
+                          deckPerRoundCount === num
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        {num} từ / đợt
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-amber-800/80 block mt-1">
+                    Ghi nhớ ➔ Nối từ ({deckPerRoundCount} từ) ➔ Viết từ ➔ Ngữ cảnh
+                  </span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-amber-950 flex items-center gap-1 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-700" />
+                    Thời gian mỗi câu
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {[8, 10, 15].map((sec) => (
+                      <button
+                        key={sec}
+                        type="button"
+                        onClick={() => setDeckTimePerQuestion(sec)}
+                        className={`px-3 py-1 rounded-lg font-bold text-xs transition ${
+                          deckTimePerQuestion === sec
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
+                        }`}
+                      >
+                        {sec} giây
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-amber-800/80 block mt-1">
+                    1.5s đầu giữ 1000 điểm trọn vẹn
+                  </span>
+                </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-700">
-                    Chọn từ vựng ({selectedWordIds.length}/10 từ đã chọn)
+                    Chọn từ vựng ({selectedWordIds.length}/30 từ đã chọn)
                   </label>
-                  <span className="text-[11px] text-slate-400">Tối thiểu 3 từ, tối đa 10 từ</span>
+                  <span className="text-[11px] text-slate-400">Tối thiểu 3 từ, tối đa 30 từ</span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 mb-2">
@@ -603,7 +671,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50/50">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50/50">
                   {vocabularies
                     .filter((w) => {
                       if (deckLevelFilter !== 'ALL' && w.cefr_level !== deckLevelFilter) return false;
@@ -613,7 +681,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                       }
                       return true;
                     })
-                    .slice(0, 120)
+                    .slice(0, 150)
                     .map((w) => {
                     const isSelected = selectedWordIds.includes(w.id);
                     return (
@@ -623,7 +691,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                         onClick={() => toggleWordSelection(w.id)}
                         className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between text-xs ${
                           isSelected
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold ring-1 ring-emerald-500/20'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
@@ -639,7 +707,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCreatingDeck(false)}

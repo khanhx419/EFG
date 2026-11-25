@@ -148,7 +148,10 @@ class StorageService {
   }
 
   public async getVocabularies(): Promise<VocabWord[]> {
-    const allWords = await loadFullVocabularies();
+    const rawAllWords = await loadFullVocabularies();
+    const allWords = rawAllWords.filter(
+      (w) => !/ngôi thứ ba số ít/i.test(w.meaning_vi) && !/dạng số nhiều/i.test(w.meaning_vi)
+    );
     let progress = await this.loadProgress();
     if (!progress) progress = await this.migrateLegacy();
 

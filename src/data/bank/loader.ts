@@ -64,6 +64,12 @@ function expandCompact(entry: CompactEntry, dueIso: string): VocabWord {
     ? finalExample.replace(re, '___')
     : `Choose the word that means "${meaning_vi}": ___`;
 
+  // Provide an intuitive, natural Vietnamese translation of the example sentence:
+  // Show the sentence's contextual meaning with the word's definition clearly indicated.
+  const naturalExampleVi = finalExample
+    ? `Dịch: "${finalExample.replace(re, `[${word}: ${meaning_vi}]`)}"`
+    : `Nghĩa: ${meaning_vi}`;
+
   return {
     id: `${level.toLowerCase()}_10k_${word}`,
     word,
@@ -74,7 +80,7 @@ function expandCompact(entry: CompactEntry, dueIso: string): VocabWord {
     part_of_speech: pos,
     meaning_vi,
     example_en: finalExample,
-    example_vi: `Nghĩa chính: ${meaning_vi}`,
+    example_vi: naturalExampleVi,
     audio_hint_available: true,
     isCollected: false,
     srs_status: {
@@ -93,7 +99,7 @@ function expandCompact(entry: CompactEntry, dueIso: string): VocabWord {
       blankWord: word,
       options: [word],
       correctAnswer: word,
-      translation_vi: `Từ cần điền mang nghĩa: ${meaning_vi}`,
+      translation_vi: naturalExampleVi,
     },
   };
 }
@@ -112,7 +118,7 @@ export async function loadFullVocabularies(): Promise<VocabWord[]> {
   loadingPromise = (async () => {
     try {
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-      const res = await fetch(`${base}data/vocab-10k.json?v=3`);
+      const res = await fetch(`${base}data/vocab-10k.json?v=4`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = (await res.json()) as CompactEntry[];
 
@@ -122,6 +128,12 @@ export async function loadFullVocabularies(): Promise<VocabWord[]> {
 
       for (let i = 0; i < raw.length; i++) {
         const entry = raw[i];
+        const meaning = entry[4] || '';
+        // Filter out grammatical inflection duplicates (e.g. tapes, racks, third-person/plural)
+        if (/ngôi thứ ba số ít/i.test(meaning) || /dạng số nhiều/i.test(meaning) || /chia ở thì/i.test(meaning)) {
+          continue;
+        }
+
         const key = entry[0].toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);

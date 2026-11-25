@@ -64,6 +64,8 @@ function pickDistractors(word: VocabWord, pool: VocabWord[], count: number): Voc
  * Build a fresh context (fill-in-the-blank) question each time a word is played:
  * - randomly uses the cloze sentence or the example sentence (if it contains the exact word)
  * - distractors are drawn at random from the whole bank (same POS / level)
+ * - NEVER only use words from the match deck: distractors are sampled from outside
+ *   the immediate match deck so players must genuinely read the sentence, not guess by elimination.
  * - option order is shuffled → impossible to memorise "answer is always A".
  */
 export function buildContextQuestion(word: VocabWord, pool: VocabWord[]): ContextQuestion {

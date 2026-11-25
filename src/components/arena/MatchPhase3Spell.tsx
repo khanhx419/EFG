@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bot, Headphones, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react';
+import { Bot, Headphones, Eye, EyeOff, Sparkles, AlertCircle, SkipForward } from 'lucide-react';
 import { VocabWord, MatchWordStat } from '../../types/vocab';
 import { TimeDecayScoreBar } from '../common/TimeDecayScoreBar';
 import { AudioHintButton } from '../common/AudioHintButton';
@@ -19,6 +19,7 @@ interface MatchPhase3SpellProps {
   initialBotScore: number;
   initialCombo: number;
   accentPreference: 'en-US' | 'en-GB';
+  timePerQuestion?: number;
 }
 
 export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
@@ -28,12 +29,14 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
   initialPlayerScore,
   initialBotScore,
   initialCombo,
-  accentPreference
+  accentPreference,
+  timePerQuestion = 10
 }) => {
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
   const [inputVal, setInputVal] = useState<string>('');
   const [isShaking, setIsShaking] = useState<boolean>(false);
   const [hasAttemptError, setHasAttemptError] = useState<boolean>(false);
+  const [isTimedOut, setIsTimedOut] = useState<boolean>(false);
 
   // Dictation mode (toggle available especially for B2, C1, C2)
   const [dictationMode, setDictationMode] = useState<boolean>(false);
@@ -51,6 +54,7 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
   const [currentDecayScore, setCurrentDecayScore] = useState<number>(1000);
   const questionStartTimeRef = useRef<number>(Date.now());
   const decayTimerRef = useRef<number | null>(null);
+  const autoTimeoutRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const currentWord = words[currentWordIndex];
@@ -70,20 +74,55 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
     }
   }, [currentWordIndex, dictationMode]);
 
-  // Real-time decay tick
+  // Real-time decay tick: 1.5s freeze at 1000, decays to 0 over 10s
   useEffect(() => {
     decayTimerRef.current = window.setInterval(() => {
+      if (isTimedOut) return;
       const elapsed = Date.now() - questionStartTimeRef.current;
-      const decayWindow = 8000; // 8 seconds to 300 pts
-      const fraction = Math.min(1, elapsed / decayWindow);
-      const score = Math.max(300, Math.round(1000 - fraction * 700));
-      setCurrentDecayScore(score);
+      const gracePeriodMs = 1500;
+      const totalDurationMs = Math.max(8000, timePerQuestion * 1000);
+
+      if (elapsed <= gracePeriodMs) {
+        setCurrentDecayScore(1000);
+      } else {
+        const decayWindow = totalDurationMs - gracePeriodMs;
+        const decayElapsed = elapsed - gracePeriodMs;
+        const fraction = Math.min(1, decayElapsed / decayWindow);
+        const score = Math.max(0, Math.round(1000 - fraction * 1000));
+        setCurrentDecayScore(score);
+
+        // Auto timeout at 0 pts: show answer for 5s
+        if (score <= 0 && !isTimedOut) {
+          handleTimeoutExpire();
+        }
+      }
     }, 100);
 
     return () => {
       if (decayTimerRef.current) clearInterval(decayTimerRef.current);
     };
-  }, []);
+  }, [isTimedOut, timePerQuestion]);
+
+  const handleTimeoutExpire = () => {
+    setIsTimedOut(true);
+    setCombo(0);
+    audioService.playSound('wrong');
+
+    const stat: MatchWordStat = {
+      wordId: currentWord.id,
+      word: currentWord.word,
+      meaning_vi: currentWord.meaning_vi,
+      wasIncorrect: true,
+      reactionTimeMs: 10000,
+      isSlow: true
+    };
+    const updatedStats = [...collectedStats, stat];
+    setCollectedStats(updatedStats);
+
+    autoTimeoutRef.current = window.setTimeout(() => {
+      advanceNextWord(playerScore, botScore, maxCombo, updatedStats);
+    }, 5000);
+  };
 
   // Bot simulation for this question
   useEffect(() => {
@@ -92,14 +131,28 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
       if (botRes.isCorrect) {
         setBotScore((prev) => prev + botRes.score);
       }
-    }, 2500 + Math.random() * 2000);
+    }, 2800 + Math.random() * 2000);
 
     return () => clearTimeout(timer);
   }, [currentWordIndex, difficulty]);
 
+  const advanceNextWord = (
+    pScore: number,
+    bScore: number,
+    mCombo: number,
+    stats: MatchWordStat[]
+  ) => {
+    if (autoTimeoutRef.current) clearTimeout(autoTimeoutRef.current);
+    if (currentWordIndex < words.length - 1) {
+      setCurrentWordIndex((prev) => prev + 1);
+    } else {
+      onPhaseComplete(pScore, bScore, mCombo, stats);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentWord || !inputVal.trim()) return;
+    if (!currentWord || !inputVal.trim() || isTimedOut) return;
 
     const trimmed = inputVal.trim().toLowerCase();
     const correctTarget = currentWord.word.trim().toLowerCase();
@@ -132,17 +185,9 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
       const updatedStats = [...collectedStats, stat];
       setCollectedStats(updatedStats);
 
-      // Advance or complete
-      if (currentWordIndex < words.length - 1) {
-        setCurrentWordIndex((prev) => prev + 1);
-      } else {
-        setTimeout(() => {
-          onPhaseComplete(updatedPlayerScore, botScore, Math.max(maxCombo, nextCombo), updatedStats);
-        }, 500);
-      }
+      advanceNextWord(updatedPlayerScore, botScore, Math.max(maxCombo, nextCombo), updatedStats);
     } else {
       // Wrong typing!
-      // Requirement: "báo rung nhẹ ô nhập và cho phép xóa đi gõ lại tiếp ngay lập tức (không khóa phím, không trừ điểm thẳng, chỉ mất thời gian khiến thanh điểm tụt xuống)"
       setIsShaking(true);
       setHasAttemptError(true);
       audioService.playSound('wrong');
@@ -153,8 +198,27 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
     }
   };
 
+  // Nút bỏ qua từ khi thi đấu
+  const handleSkipWord = () => {
+    if (isTimedOut) return;
+    setCombo(0);
+    audioService.playSound('wrong');
+
+    const stat: MatchWordStat = {
+      wordId: currentWord.id,
+      word: currentWord.word,
+      meaning_vi: currentWord.meaning_vi,
+      wasIncorrect: true,
+      reactionTimeMs: Date.now() - questionStartTimeRef.current,
+      isSlow: true
+    };
+    const updatedStats = [...collectedStats, stat];
+    setCollectedStats(updatedStats);
+    advanceNextWord(playerScore, botScore, maxCombo, updatedStats);
+  };
+
   return (
-    <div className="max-w-2xl mx-auto space-y-5 animate-fadeIn">
+    <div className="w-full max-w-3xl mx-auto space-y-4 animate-fadeIn px-2 sm:px-0">
       {/* Top Header: Scores & Phase Indicator */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
         <div>
@@ -192,35 +256,48 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
         </div>
       </div>
 
-      {/* Time Decay Score Bar (1000 -> 300, 3 color zones) */}
+      {/* Time Decay Score Bar (10s decay, 1.5s freeze) */}
       <TimeDecayScoreBar
         currentScore={currentDecayScore}
         combo={combo}
-        label="Điểm phản xạ câu này"
+        minScore={0}
+        maxScore={1000}
+        label="Điểm gõ từ câu này (10s)"
       />
 
       {/* Main Spelling Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-        {/* Dictation Mode Toggle for High Levels */}
-        {isHighLevel && (
-          <div className="flex items-center justify-between p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
-            <div className="flex items-center gap-2 text-xs font-bold text-purple-900">
-              <Headphones className="w-4 h-4 text-purple-700" />
-              <span>Chế độ Nghe & Viết (Dictation - B2/C1/C2)</span>
+      <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm space-y-5">
+        {/* Top bar in card: Dictation toggle and Skip button */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Dictation Mode Toggle for High Levels */}
+          {isHighLevel ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDictationMode(!dictationMode)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100/60 transition"
+              >
+                {dictationMode ? <EyeOff className="w-3.5 h-3.5 text-purple-700" /> : <Eye className="w-3.5 h-3.5 text-purple-700" />}
+                <span>{dictationMode ? 'Đang ẩn nghĩa' : 'Ẩn nghĩa (Dictation)'}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setDictationMode(!dictationMode)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-purple-800 border border-purple-200 shadow-2xs hover:bg-purple-100/50 transition"
-            >
-              {dictationMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {dictationMode ? 'Đang ẩn nghĩa (Bật hiển thị)' : 'Ẩn nghĩa tiếng Việt'}
-            </button>
-          </div>
-        )}
+          ) : <div />}
+
+          {/* Nút bỏ qua từ khi thi đấu */}
+          <button
+            type="button"
+            onClick={handleSkipWord}
+            disabled={isTimedOut}
+            className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition"
+            title="Bỏ qua từ này (chuyển từ kế tiếp)"
+          >
+            <SkipForward className="w-3.5 h-3.5" />
+            <span>Bỏ qua</span>
+          </button>
+        </div>
 
         {/* Prompt: Vietnamese Meaning (or Audio Dictation Wave) */}
-        <div className="text-center py-4 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+        <div className="text-center py-3 bg-slate-50/70 rounded-2xl border border-slate-200/80">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
             {dictationMode ? 'Nghe phát âm & gõ chính xác' : 'Nghĩa tiếng Việt'}
           </span>
@@ -231,15 +308,31 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
               <span>[Nghe từ qua loa gợi ý bên dưới để gõ]</span>
             </div>
           ) : (
-            <h3 className="text-2xl font-extrabold text-slate-900">
+            <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
               {currentWord?.meaning_vi}
             </h3>
           )}
 
-          <div className="text-xs text-slate-400 mt-2 font-mono">
+          <div className="text-xs text-slate-400 mt-1 font-mono">
             Loại từ: {currentWord?.part_of_speech} • Cấp {currentWord?.cefr_level}
           </div>
         </div>
+
+        {/* Hộp thông báo hết thời gian (5s hiện đáp án và nghĩa để ôn lại) */}
+        {isTimedOut && (
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-center justify-between text-left animate-fadeIn">
+            <div>
+              <span className="font-bold block">⏰ Hết thời gian 10s (0 pts)!</span>
+              <span>Từ đúng là <strong className="text-emerald-700 font-mono text-sm uppercase">{currentWord.word}</strong>: {currentWord.meaning_vi}. Tự chuyển từ sau 5s...</span>
+            </div>
+            <button
+              onClick={() => advanceNextWord(playerScore, botScore, maxCombo, collectedStats)}
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 ml-2 text-[11px]"
+            >
+              Chuyển ngay
+            </button>
+          </div>
+        )}
 
         {/* Input Field + 5s Circular Radial Countdown Audio Hint Button */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -252,6 +345,7 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
+                disabled={isTimedOut}
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 placeholder="Gõ từ tiếng Anh rồi Enter..."
@@ -281,7 +375,7 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
 
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>💡 Nhấn <strong>Enter</strong> để kiểm tra phản xạ</span>
-            <span>Gõ sai ô sẽ rung và cho gõ lại ngay mà không bị khóa phím</span>
+            <span>Gõ sai ô sẽ rung và cho gõ lại ngay</span>
           </div>
         </form>
       </div>

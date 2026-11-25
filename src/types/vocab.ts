@@ -1,6 +1,6 @@
 export type CEFRLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
-export type WordLengthMode = 3 | 5 | 10; // 3 từ (Nhanh), 5 từ (Tiêu chuẩn), 10 từ (Thử thách)
+export type WordLengthMode = 3 | 5 | 10 | 15 | 20; // 3 từ (Nhanh), 5 từ (Tiêu chuẩn), 10 từ (Thử thách), 15-20 từ (Chuyên sâu)
 
 export type GamePhase = 
   | 'lobby'
@@ -54,6 +54,8 @@ export interface CustomDeck {
   description: string;
   createdAt: string;
   wordIds: string[];
+  perRoundCount?: number;   // Số từ mỗi lượt đấu (vd: 5 từ từ pool 20 từ)
+  timePerQuestion?: number; // Thời gian mỗi câu (giây, mặc định 10s)
 }
 
 export interface MatchWordStat {

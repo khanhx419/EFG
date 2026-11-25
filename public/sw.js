@@ -1,9 +1,9 @@
-const CACHE_NAME = 'vocabclash-v3';
+const CACHE_NAME = 'vocabclash-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/data/vocab-10k.json?v=3'
+  '/data/vocab-10k.json?v=4'
 ];
 
 self.addEventListener('install', (event) => {
