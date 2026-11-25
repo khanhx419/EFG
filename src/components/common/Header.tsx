@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Zap, 
   Swords, 
@@ -10,7 +10,8 @@ import {
   VolumeX, 
   Info, 
   Sparkles,
-  Compass
+  Compass,
+  X
 } from 'lucide-react';
 import { CEFRLevel, UserProfile } from '../../types/vocab';
 import { audioService } from '../../services/audio';
@@ -36,6 +37,20 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPhoneticsGuide,
   onUpdateProfile
 }) => {
+  // Running ticker state (default shown, persisted in localStorage)
+  const [isTickerVisible, setIsTickerVisible] = useState<boolean>(() => {
+    return localStorage.getItem('vocabclash_ticker_enabled') !== 'false';
+  });
+
+  // Top-right info (i) tooltip popover state
+  const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
+
+  const toggleTicker = () => {
+    const nextVal = !isTickerVisible;
+    setIsTickerVisible(nextVal);
+    localStorage.setItem('vocabclash_ticker_enabled', nextVal ? 'true' : 'false');
+  };
+
   const toggleSound = () => {
     const nextMuted = !userProfile.soundEnabled;
     audioService.setMuted(!nextMuted);
@@ -65,6 +80,49 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
+      {/* 1. Dòng chữ chạy trên đầu web với icon lửa tinh thần học tập */}
+      {isTickerVisible && (
+        <div className="w-full bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-amber-300 py-1.5 px-3 border-b border-amber-500/30 overflow-hidden relative select-none">
+          <div className="animate-marquee flex items-center gap-16 font-medium text-xs tracking-wide">
+            {/* Instance 1 */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="flex items-center gap-1 text-orange-400">
+                <Flame className="w-4 h-4 fill-orange-500 animate-pulse" />
+                <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              </span>
+              <span className="font-extrabold uppercase text-[11px] text-amber-400 tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
+                Tinh thần học tập
+              </span>
+              <span className="text-white/95 font-semibold italic text-xs">
+                "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
+              </span>
+              <span className="flex items-center gap-1 text-orange-400 ml-1">
+                <Flame className="w-3.5 h-3.5 fill-amber-400" />
+                <Flame className="w-4 h-4 fill-orange-500 animate-pulse" />
+              </span>
+            </div>
+
+            {/* Instance 2 (cho vòng lặp cuộn chữ liên tục mượt mà) */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="flex items-center gap-1 text-orange-400">
+                <Flame className="w-4 h-4 fill-orange-500 animate-pulse" />
+                <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              </span>
+              <span className="font-extrabold uppercase text-[11px] text-amber-400 tracking-wider bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/30">
+                Tinh thần học tập
+              </span>
+              <span className="text-white/95 font-semibold italic text-xs">
+                "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
+              </span>
+              <span className="flex items-center gap-1 text-orange-400 ml-1">
+                <Flame className="w-3.5 h-3.5 fill-amber-400" />
+                <Flame className="w-4 h-4 fill-orange-500 animate-pulse" />
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
@@ -193,20 +251,79 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* Fair-Play Reminder Info Popover */}
-            <div className="relative group">
+            {/* 2. Cái (i) ở góc trên bên phải: di chuột / click hiện thông điệp & thẻ xoá dòng chữ chạy */}
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsInfoOpen(true)}
+              onMouseLeave={() => setIsInfoOpen(false)}
+            >
               <button
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition"
-                title="Thông điệp tinh thần học tập"
+                type="button"
+                onClick={() => setIsInfoOpen(!isInfoOpen)}
+                className={`p-1.5 rounded-full transition flex items-center justify-center ${
+                  isInfoOpen 
+                    ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400/40' 
+                    : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                }`}
+                title="Thông điệp tinh thần học tập & cài đặt chữ chạy"
+                aria-label="Thông tin tinh thần học tập"
               >
                 <Info className="w-4 h-4" />
               </button>
-              <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                <p className="font-semibold text-emerald-400 mb-1">Tinh thần thi đấu Fair-play</p>
-                <p className="text-slate-300 italic text-[11px] leading-relaxed">
-                  "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
-                </p>
-              </div>
+
+              {/* Popover Card */}
+              {isInfoOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 p-4 bg-slate-900 text-white text-xs rounded-2xl shadow-2xl border border-slate-700 z-50 animate-fadeIn space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-amber-400 flex items-center gap-1.5 text-xs">
+                      <Flame className="w-4 h-4 text-orange-500 fill-orange-500 animate-pulse" />
+                      Tinh Thần Học Tập Fair-Play
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsInfoOpen(false)}
+                      className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/80 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-400">
+                      <Flame className="w-3.5 h-3.5 fill-orange-400" />
+                      <span>Thông điệp gửi người học:</span>
+                    </div>
+                    <p className="text-slate-200 italic text-xs leading-relaxed">
+                      "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
+                    </p>
+                  </div>
+
+                  {/* Thẻ xoá / bật tắt dòng chữ chạy trên đầu web */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={toggleTicker}
+                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border shadow-sm ${
+                        isTickerVisible
+                          ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/40'
+                          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40'
+                      }`}
+                    >
+                      {isTickerVisible ? (
+                        <>
+                          <X className="w-3.5 h-3.5" />
+                          <span>Xoá / Tắt dòng chữ chạy trên đầu web</span>
+                        </>
+                      ) : (
+                        <>
+                          <Flame className="w-3.5 h-3.5 fill-emerald-400" />
+                          <span>Bật lại dòng chữ chạy tinh thần học</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

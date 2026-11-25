@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Swords, Bot, Sparkles, Info, X, Layers, Play, Zap, Clock } from 'lucide-react';
+import { Swords, Bot, Sparkles, Layers, Play, Zap, Clock } from 'lucide-react';
 import { CEFRLevel, CustomDeck, VocabWord, WordLengthMode } from '../../types/vocab';
 import { BotDifficulty, BOT_PROFILES } from '../../services/botAi';
 
@@ -41,12 +41,6 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
   const [perRoundCount, setPerRoundCount] = useState<number>(5);
   const [timePerQuestion, setTimePerQuestion] = useState<number>(10);
 
-  // Fair-play spirit banner state
-  const [isSpiritHidden, setIsSpiritHidden] = useState<boolean>(() => {
-    return localStorage.getItem('hide_study_spirit_msg') === 'true';
-  });
-  const [showSpiritTooltip, setShowSpiritTooltip] = useState<boolean>(false);
-
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   // Sync custom deck defaults if deck selected
@@ -63,17 +57,6 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
       }
     }
   }, [selectedCustomDeckId, deckSource, customDecks]);
-
-  const handleDismissSpirit = () => {
-    localStorage.setItem('hide_study_spirit_msg', 'true');
-    setIsSpiritHidden(true);
-    setShowSpiritTooltip(false);
-  };
-
-  const handleRestoreSpirit = () => {
-    localStorage.removeItem('hide_study_spirit_msg');
-    setIsSpiritHidden(false);
-  };
 
   const handleLaunchMatch = () => {
     let candidatePool: VocabWord[] = [];
@@ -110,74 +93,6 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-3.5 animate-fadeIn px-2 sm:px-4">
-      {/* Fair-Play Community Reminder Banner / Tooltip Card */}
-      {!isSpiritHidden ? (
-        <div className="bg-slate-900 text-white p-3 sm:p-3.5 rounded-2xl shadow-sm flex items-center justify-between gap-3 animate-fadeIn">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-              <Info className="w-4 h-4" />
-            </div>
-            <p className="text-xs text-slate-300 italic leading-snug">
-              <span className="font-semibold text-emerald-400 not-italic mr-1">Thông điệp tinh thần học:</span>
-              "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleDismissSpirit}
-            className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg shrink-0 transition"
-            title="Xóa/Tắt thông điệp này"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>Xóa thông điệp</span>
-          </button>
-        </div>
-      ) : (
-        /* Khi đã ẩn, giữ icon (i) có hover tooltip để người dùng xem lại khi cần */
-        <div className="relative flex justify-end">
-          <div
-            className="relative inline-block"
-            onMouseEnter={() => setShowSpiritTooltip(true)}
-            onMouseLeave={() => setShowSpiritTooltip(false)}
-          >
-            <button
-              type="button"
-              onClick={() => setShowSpiritTooltip(!showSpiritTooltip)}
-              className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-600 px-2 py-0.5 rounded-md hover:bg-slate-100 transition"
-              title="Xem thông điệp tinh thần học"
-            >
-              <Info className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Tinh thần học</span>
-            </button>
-
-            {showSpiritTooltip && (
-              <div className="absolute right-0 top-7 z-30 w-72 sm:w-80 p-3 bg-slate-900 text-white rounded-xl shadow-xl text-xs space-y-2 border border-slate-700 animate-fadeIn">
-                <p className="italic leading-relaxed text-slate-300">
-                  <span className="font-bold text-emerald-400 not-italic">Thông điệp: </span>
-                  "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
-                </p>
-                <div className="flex justify-between items-center pt-1 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={handleRestoreSpirit}
-                    className="text-[10px] text-emerald-400 hover:underline font-semibold"
-                  >
-                    Hiện lại biểu ngữ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSpiritTooltip(false)}
-                    className="text-[10px] text-slate-400 hover:text-white"
-                  >
-                    Đóng
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Main Lobby Setup Card */}
       <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm space-y-4">
         {/* Header bar */}

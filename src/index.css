@@ -36,3 +36,23 @@ body {
 .circle-progress {
   transition: stroke-dashoffset 0.1s linear;
 }
+
+/* Marquee running text animation */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
