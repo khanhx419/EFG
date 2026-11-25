@@ -93,6 +93,24 @@ export interface PlacementQuestion {
   type: 'vocab' | 'collocation' | 'cloze';
 }
 
+export type AppTheme = 'light' | 'dark' | 'system';
+export type AppFontFamily = 'system' | 'lexend' | 'mono' | 'serif';
+export type AppFontSize = 'sm' | 'base' | 'lg' | 'xl';
+export type AccentPreference = 'en-US' | 'en-GB' | 'en-AU';
+
+export interface AppSettings {
+  theme: AppTheme;
+  fontFamily: AppFontFamily;
+  fontSize: AppFontSize;
+  soundEnabled: boolean;
+  soundVolume: number; // 0.0 to 1.0
+  voiceRate: number;   // 0.75, 0.88, 1.0, 1.15
+  accentPreference: AccentPreference;
+  selectedVoiceName?: string;
+  autoPlayFlashcardAudio: boolean;
+  showTicker: boolean;
+}
+
 export interface UserProfile {
   name: string;
   currentLevel: CEFRLevel;
@@ -109,4 +127,5 @@ export interface UserProfile {
   totalVictories: number;
   soundEnabled: boolean;
   accentPreference: 'en-US' | 'en-GB';
+  settings?: AppSettings;
 }

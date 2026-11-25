@@ -11,7 +11,8 @@ import {
   Info, 
   Sparkles,
   Compass,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { CEFRLevel, UserProfile } from '../../types/vocab';
 import { audioService } from '../../services/audio';
@@ -24,6 +25,7 @@ interface HeaderProps {
   totalVocabCount: number;
   onOpenPlacementTest: () => void;
   onOpenPhoneticsGuide: () => void;
+  onOpenSettings: () => void;
   onUpdateProfile: (updated: Partial<UserProfile>) => void;
 }
 
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   totalVocabCount,
   onOpenPlacementTest,
   onOpenPhoneticsGuide,
+  onOpenSettings,
   onUpdateProfile
 }) => {
   // Running ticker state (default shown, persisted in localStorage)
@@ -259,6 +262,16 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <VolumeX className="w-4 h-4 text-slate-400" />
               )}
+            </button>
+
+            {/* Nút Cài đặt hệ thống (Sáng/tối, font, cỡ chữ, giọng đọc, âm thanh...) */}
+            <button
+              onClick={onOpenSettings}
+              title="Cài đặt hệ thống (Giao diện sáng/tối, font chữ, cỡ chữ, giọng đọc, âm thanh...)"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
+              aria-label="Cài đặt hệ thống"
+            >
+              <Settings className="w-4 h-4 text-slate-600" />
             </button>
 
             {/* 2. Cái (i) ở góc trên bên phải: di chuột / click hiện thông điệp & thẻ xoá dòng chữ chạy */}

@@ -9,6 +9,7 @@ import { VocabDexView } from './components/dictionary/VocabDexView';
 import { MatchHistoryView } from './components/history/MatchHistoryView';
 import { PlacementTestModal } from './components/placement/PlacementTestModal';
 import { PhoneticsGuideModal } from './components/common/PhoneticsGuideModal';
+import { SettingsModal } from './components/common/SettingsModal';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'arena' | 'selfStudy' | 'vocabDex' | 'history'>('arena');
@@ -20,6 +21,7 @@ export const App: React.FC = () => {
   // Modals
   const [isPlacementOpen, setIsPlacementOpen] = useState<boolean>(false);
   const [isPhoneticsOpen, setIsPhoneticsOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Cross-screen passing states
   const [arenaWords, setArenaWords] = useState<VocabWord[] | undefined>(undefined);
@@ -161,6 +163,7 @@ export const App: React.FC = () => {
         totalVocabCount={vocabularies.length}
         onOpenPlacementTest={() => setIsPlacementOpen(true)}
         onOpenPhoneticsGuide={() => setIsPhoneticsOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onUpdateProfile={handleUpdateProfile}
       />
 
@@ -224,6 +227,20 @@ export const App: React.FC = () => {
       <PhoneticsGuideModal
         isOpen={isPhoneticsOpen}
         onClose={() => setIsPhoneticsOpen(false)}
+      />
+
+      {/* Settings Modal (Theme, Font, Size, Voice, SFX) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSettingsChanged={(newSettings) => {
+          if (userProfile) {
+            handleUpdateProfile({
+              soundEnabled: newSettings.soundEnabled,
+              accentPreference: newSettings.accentPreference as 'en-US' | 'en-GB'
+            });
+          }
+        }}
       />
 
       {/* Subtle Offline & Footer Indicator */}

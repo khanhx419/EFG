@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Plus, 
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { CEFRLevel, CustomDeck, VocabWord } from '../../types/vocab';
 import { audioService } from '../../services/audio';
+import { settingsService } from '../../services/settings';
 import { pickSessionWords } from '../../services/questionGen';
 
 interface SelfStudyViewProps {
@@ -85,6 +86,13 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
   };
 
   const currentWord = studyWords[studyWordIndex];
+
+  // Auto-play audio on flashcard flip if enabled in settings
+  useEffect(() => {
+    if (isStudying && currentWord && settingsService.getSettings().autoPlayFlashcardAudio) {
+      audioService.speak(currentWord.word, accentPreference);
+    }
+  }, [studyWordIndex, isStudying, currentWord, accentPreference]);
 
   // Auto unlock current word into Vocab-Dex when studied
   const handleWordLearned = (wordId: string) => {

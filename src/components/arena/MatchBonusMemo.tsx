@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Flame, Volume2, FastForward, Clock } from 'lucide-react';
+import { Flame, Volume2, FastForward, Clock } from 'lucide-react';
 import { VocabWord } from '../../types/vocab';
 import { audioService } from '../../services/audio';
 
