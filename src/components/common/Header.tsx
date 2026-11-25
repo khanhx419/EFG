@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Zap, 
   Swords, 
@@ -8,7 +8,6 @@ import {
   Flame, 
   Volume2, 
   VolumeX, 
-  Info, 
   Sparkles,
   Compass,
   X,
@@ -45,8 +44,13 @@ export const Header: React.FC<HeaderProps> = ({
     return localStorage.getItem('vocabclash_ticker_enabled') !== 'false';
   });
 
-  // Top-right info (i) tooltip popover state
-  const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
+  useEffect(() => {
+    const handleStorage = () => {
+      setIsTickerVisible(localStorage.getItem('vocabclash_ticker_enabled') !== 'false');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const toggleTicker = () => {
     const nextVal = !isTickerVisible;
@@ -273,83 +277,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Settings className="w-4 h-4 text-slate-600" />
             </button>
-
-            {/* 2. Cái (i) ở góc trên bên phải: di chuột / click hiện thông điệp & thẻ xoá dòng chữ chạy */}
-            <div 
-              className="relative"
-              onMouseEnter={() => setIsInfoOpen(true)}
-              onMouseLeave={() => setIsInfoOpen(false)}
-            >
-              <button
-                type="button"
-                onClick={() => setIsInfoOpen(!isInfoOpen)}
-                className={`p-1.5 rounded-full transition flex items-center justify-center ${
-                  isInfoOpen 
-                    ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-400/50' 
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-                }`}
-                title="Thông điệp tinh thần học tập & cài đặt chữ chạy"
-                aria-label="Thông tin tinh thần học tập"
-              >
-                <Info className="w-4 h-4" />
-              </button>
-
-              {/* Popover Card */}
-              {isInfoOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 p-3.5 bg-slate-900 text-white text-xs rounded-2xl shadow-2xl border border-slate-700 z-50 animate-fadeIn space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-amber-400 flex items-center gap-1.5 text-xs">
-                      <Flame className="w-4 h-4 text-orange-500 fill-orange-500 animate-pulse" />
-                      Tinh Thần Học Tập Fair-Play
-                    </span>
-                    {/* Dấu X to, nổi bật, dễ nhìn */}
-                    <button
-                      type="button"
-                      onClick={() => setIsInfoOpen(false)}
-                      className="w-6 h-6 rounded-full bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-700 hover:border-rose-500"
-                      title="Đóng (X)"
-                    >
-                      <X className="w-3.5 h-3.5 stroke-[3]" />
-                    </button>
-                  </div>
-
-                  <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/80 space-y-1">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-orange-400">
-                      <Flame className="w-3 h-3 fill-orange-400" />
-                      <span>Thông điệp gửi người học:</span>
-                    </div>
-                    <p className="text-slate-200 italic text-xs leading-relaxed">
-                      "Nếu bạn thực sự muốn học, hãy tự lực thi đấu để cùng giữ một cộng đồng lành mạnh."
-                    </p>
-                  </div>
-
-                  {/* Thẻ xoá / bật tắt dòng chữ chạy trên đầu web */}
-                  <div className="pt-0.5">
-                    <button
-                      type="button"
-                      onClick={toggleTicker}
-                      className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border shadow-sm ${
-                        isTickerVisible
-                          ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border-rose-500/40'
-                          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40'
-                      }`}
-                    >
-                      {isTickerVisible ? (
-                        <>
-                          <X className="w-3.5 h-3.5 stroke-[3]" />
-                          <span>Xoá / Tắt dòng chữ chạy trên đầu web</span>
-                        </>
-                      ) : (
-                        <>
-                          <Flame className="w-3.5 h-3.5 fill-emerald-400" />
-                          <span>Bật lại dòng chữ chạy tinh thần học</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
