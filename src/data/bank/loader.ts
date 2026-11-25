@@ -112,7 +112,7 @@ export async function loadFullVocabularies(): Promise<VocabWord[]> {
   loadingPromise = (async () => {
     try {
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-      const res = await fetch(`${base}data/vocab-10k.json`);
+      const res = await fetch(`${base}data/vocab-10k.json?v=3`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const raw = (await res.json()) as CompactEntry[];
 
