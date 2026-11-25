@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Swords, Bot, Sparkles, Layers, Play, Zap, Clock } from 'lucide-react';
+import { Swords, Bot, Sparkles, Layers, Play, Zap, Clock, Gift } from 'lucide-react';
 import { CEFRLevel, CustomDeck, VocabWord, WordLengthMode } from '../../types/vocab';
 import { BotDifficulty, BOT_PROFILES } from '../../services/botAi';
 
@@ -13,7 +13,7 @@ interface MatchLobbyProps {
     mode: 'pvp_bot' | 'custom_deck',
     levelTitle: CEFRLevel | 'Custom',
     wordCount: WordLengthMode,
-    customSettings?: { perRoundCount?: number; timePerQuestion?: number }
+    customSettings?: { perRoundCount?: number; timePerQuestion?: number; enableRandomBonus?: boolean }
   ) => void;
   preselectedWords?: VocabWord[];
   preselectedDeckTitle?: string;
@@ -34,29 +34,27 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
   const [selectedCustomDeckId, setSelectedCustomDeckId] = useState<string>(
     customDecks[0]?.id || ''
   );
-  const [wordCount, setWordCount] = useState<WordLengthMode>(5);
+  const [wordCount, setWordCount] = useState<number>(5);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
 
   // Custom Deck parameters: perRoundCount and timePerQuestion
   const [perRoundCount, setPerRoundCount] = useState<number>(5);
   const [timePerQuestion, setTimePerQuestion] = useState<number>(10);
 
+  // Bonus surprise word toggle (1-2 new words with 20s study)
+  const [enableRandomBonus, setEnableRandomBonus] = useState<boolean>(true);
+
   const levels: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const activeDeck = customDecks.find((d) => d.id === selectedCustomDeckId);
 
   // Sync custom deck defaults if deck selected
   useEffect(() => {
-    if (deckSource === 'custom') {
-      const deck = customDecks.find((d) => d.id === selectedCustomDeckId);
-      if (deck) {
-        if (deck.perRoundCount) setPerRoundCount(deck.perRoundCount);
-        if (deck.timePerQuestion) setTimePerQuestion(deck.timePerQuestion);
-        if (deck.wordIds.length >= 20) setWordCount(20);
-        else if (deck.wordIds.length >= 10) setWordCount(10);
-        else if (deck.wordIds.length >= 5) setWordCount(5);
-        else setWordCount(3);
-      }
+    if (deckSource === 'custom' && activeDeck) {
+      if (activeDeck.perRoundCount) setPerRoundCount(activeDeck.perRoundCount);
+      if (activeDeck.timePerQuestion) setTimePerQuestion(activeDeck.timePerQuestion);
+      setWordCount(activeDeck.wordIds.length);
     }
-  }, [selectedCustomDeckId, deckSource, customDecks]);
+  }, [selectedCustomDeckId, deckSource, activeDeck]);
 
   const handleLaunchMatch = () => {
     let candidatePool: VocabWord[] = [];
@@ -69,67 +67,72 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
       candidatePool = vocabularies.filter((w) => w.cefr_level === selectedLevel);
       title = selectedLevel;
     } else {
-      const customDeck = customDecks.find((d) => d.id === selectedCustomDeckId);
-      if (customDeck) {
-        candidatePool = vocabularies.filter((w) => customDeck.wordIds.includes(w.id));
+      if (activeDeck) {
+        candidatePool = vocabularies.filter((w) => activeDeck.wordIds.includes(w.id));
         title = 'Custom';
       }
     }
 
     if (candidatePool.length === 0) return;
 
+    const effectiveCount = Math.min(wordCount, candidatePool.length) as WordLengthMode;
+
     onStartMatch(
       candidatePool,
       difficulty,
       deckSource === 'custom' ? 'custom_deck' : 'pvp_bot',
       title,
-      wordCount,
+      effectiveCount,
       {
         perRoundCount,
-        timePerQuestion
+        timePerQuestion,
+        enableRandomBonus
       }
     );
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-3.5 animate-fadeIn px-2 sm:px-4">
+    <div className="w-full max-w-4xl mx-auto space-y-2.5 animate-fadeIn px-2 sm:px-4">
       {/* Main Lobby Setup Card */}
-      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white rounded-3xl p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-3">
         {/* Header bar */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs">
               <Swords className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-slate-900">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
                 Phòng Đấu 1v1 Tính Điểm Tốc Độ (Pure Score)
               </h2>
               <p className="text-[11px] text-slate-500">
-                Chu trình 4 chặng: Ghi nhớ ➔ Nối từ (5 từ) ➔ Viết từ ➔ Ngữ cảnh
+                4 chặng chuẩn: Ghi nhớ ➔ Nối từ ➔ Viết từ ➔ Điền câu ngữ cảnh
               </p>
             </div>
           </div>
         </div>
 
         {/* 1. Chọn Nguồn Bộ Từ */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-emerald-600" />
-            1. Chọn Nguồn Bộ Từ Vựng
+            1. Nguồn Bộ Từ Vựng
           </label>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setDeckSource('standard')}
-              className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
+              onClick={() => {
+                setDeckSource('standard');
+                setWordCount(5);
+              }}
+              className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 ${
                 deckSource === 'standard'
                   ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600 font-bold'
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
+              <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">
                 CEFR
               </div>
               <div>
@@ -140,9 +143,12 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
 
             <button
               type="button"
-              onClick={() => setDeckSource('custom')}
+              onClick={() => {
+                setDeckSource('custom');
+                if (activeDeck) setWordCount(activeDeck.wordIds.length);
+              }}
               disabled={customDecks.length === 0}
-              className={`p-3 rounded-xl border text-left transition flex items-center gap-2.5 ${
+              className={`p-2.5 rounded-xl border text-left transition flex items-center gap-2 ${
                 deckSource === 'custom'
                   ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600 font-bold'
                   : customDecks.length === 0
@@ -150,7 +156,7 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">
+              <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
               <div>
@@ -185,7 +191,7 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
               <select
                 value={selectedCustomDeckId}
                 onChange={(e) => setSelectedCustomDeckId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               >
                 {customDecks.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -194,10 +200,10 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
                 ))}
               </select>
 
-              {/* Tuỳ chỉnh thông số bộ từ tự tạo: số từ mỗi lượt & thời gian */}
-              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {/* Tuỳ chỉnh thông số bộ từ tự tạo: số từ mỗi đợt & thời gian */}
+              <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="font-bold text-amber-950 flex items-center gap-1 mb-1">
+                  <span className="font-bold text-amber-950 flex items-center gap-1 mb-1 text-[11px]">
                     <Layers className="w-3.5 h-3.5 text-amber-700" />
                     Chia nhỏ mỗi đợt học (Sub-round)
                   </span>
@@ -207,23 +213,20 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
                         key={num}
                         type="button"
                         onClick={() => setPerRoundCount(num)}
-                        className={`px-2.5 py-1 rounded-lg font-bold text-xs transition ${
+                        className={`px-2 py-0.5 rounded-lg font-bold text-xs transition ${
                           perRoundCount === num
                             ? 'bg-amber-600 text-white'
                             : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
                         }`}
                       >
-                        {num} từ / đợt
+                        {num} từ/đợt
                       </button>
                     ))}
                   </div>
-                  <span className="text-[10px] text-amber-800/80 block mt-0.5">
-                    Ví dụ: 20 từ chia thành các đợt 5 từ đảo pha
-                  </span>
                 </div>
 
                 <div>
-                  <span className="font-bold text-amber-950 flex items-center gap-1 mb-1">
+                  <span className="font-bold text-amber-950 flex items-center gap-1 mb-1 text-[11px]">
                     <Clock className="w-3.5 h-3.5 text-amber-700" />
                     Thời gian mỗi câu
                   </span>
@@ -233,19 +236,16 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
                         key={sec}
                         type="button"
                         onClick={() => setTimePerQuestion(sec)}
-                        className={`px-2.5 py-1 rounded-lg font-bold text-xs transition ${
+                        className={`px-2.5 py-0.5 rounded-lg font-bold text-xs transition ${
                           timePerQuestion === sec
                             ? 'bg-amber-600 text-white'
                             : 'bg-white border border-amber-200 text-amber-900 hover:bg-amber-100'
                         }`}
                       >
-                        {sec} giây
+                        {sec}s
                       </button>
                     ))}
                   </div>
-                  <span className="text-[10px] text-amber-800/80 block mt-0.5">
-                    1.5s đầu giữ 1000 điểm trọn vẹn
-                  </span>
                 </div>
               </div>
             </div>
@@ -253,77 +253,131 @@ export const MatchLobby: React.FC<MatchLobbyProps> = ({
         </div>
 
         {/* 2. Chọn Quy Mô Trận Đấu */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-amber-500" />
-            2. Quy Mô Trận Đấu (Tổng Số Lượng Từ)
+            2. Quy Mô Trận Đấu (Số Lượng Từ)
           </label>
 
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {[
-              { count: 3 as WordLengthMode, label: '3 Từ', sub: 'Nhanh' },
-              { count: 5 as WordLengthMode, label: '5 Từ', sub: 'Tiêu chuẩn' },
-              { count: 10 as WordLengthMode, label: '10 Từ', sub: 'Thử thách' },
-              { count: 15 as WordLengthMode, label: '15 Từ', sub: 'Chuyên sâu' },
-              { count: 20 as WordLengthMode, label: '20 Từ', sub: 'Esports' }
-            ].map((opt) => (
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {deckSource === 'custom' && activeDeck && (
               <button
-                key={opt.count}
                 type="button"
-                onClick={() => setWordCount(opt.count)}
-                className={`p-2 sm:p-2.5 rounded-xl border text-center transition ${
-                  wordCount === opt.count
+                onClick={() => setWordCount(activeDeck.wordIds.length)}
+                className={`p-2 rounded-xl border text-center transition ${
+                  wordCount === activeDeck.wordIds.length
                     ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600 font-bold'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
-                <div className="text-xs sm:text-sm font-extrabold">{opt.label}</div>
-                <div className="text-[10px] text-slate-500">{opt.sub}</div>
+                <div className="text-xs font-extrabold">Tất cả</div>
+                <div className="text-[9px] text-slate-500">{activeDeck.wordIds.length} từ</div>
               </button>
-            ))}
-          </div>
-        </div>
+            )}
 
-        {/* 3. Đối Thủ Bot AI */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Bot className="w-3.5 h-3.5 text-purple-600" />
-            3. Độ Khó Bot AI Đối Thủ
-          </label>
-
-          <div className="grid grid-cols-3 gap-2">
-            {(['easy', 'medium', 'hard'] as BotDifficulty[]).map((diff) => {
-              const cfg = BOT_PROFILES[diff];
-              return (
+            {[
+              { count: 3, label: '3 Từ', sub: 'Nhanh' },
+              { count: 5, label: '5 Từ', sub: 'Tiêu chuẩn' },
+              { count: 10, label: '10 Từ', sub: 'Thử thách' },
+              { count: 15, label: '15 Từ', sub: 'Chuyên sâu' },
+              { count: 20, label: '20 Từ', sub: 'Esports' }
+            ]
+              .filter((opt) => deckSource !== 'custom' || !activeDeck || opt.count <= activeDeck.wordIds.length)
+              .map((opt) => (
                 <button
-                  key={diff}
+                  key={opt.count}
                   type="button"
-                  onClick={() => setDifficulty(diff)}
-                  className={`p-2.5 rounded-xl border text-left transition ${
-                    difficulty === diff
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600 font-bold'
+                  onClick={() => setWordCount(opt.count)}
+                  className={`p-2 rounded-xl border text-center transition ${
+                    wordCount === opt.count
+                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600 font-bold'
                       : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-base">{cfg.avatar}</span>
-                    <span className="text-xs font-bold">{cfg.name.split(' ')[1]}</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 truncate">
-                    {Math.round(cfg.accuracyRate * 100)}% • {cfg.typingWpm} WPM
-                  </div>
+                  <div className="text-xs font-extrabold">{opt.label}</div>
+                  <div className="text-[9px] text-slate-500">{opt.sub}</div>
                 </button>
-              );
-            })}
+              ))}
+          </div>
+        </div>
+
+        {/* 3. Đối Thủ Bot AI & Thử thách Bonus ngẫu nhiên */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* Bot Difficulty */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Bot className="w-3.5 h-3.5 text-purple-600" />
+              3. Độ Khó Bot AI
+            </label>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {(['easy', 'medium', 'hard'] as BotDifficulty[]).map((diff) => {
+                const cfg = BOT_PROFILES[diff];
+                return (
+                  <button
+                    key={diff}
+                    type="button"
+                    onClick={() => setDifficulty(diff)}
+                    className={`p-2 rounded-xl border text-left transition ${
+                      difficulty === diff
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-600 font-bold'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <span className="text-sm">{cfg.avatar}</span>
+                      <span className="text-[11px] font-bold">{cfg.name.split(' ')[1]}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-500 truncate">
+                      {Math.round(cfg.accuracyRate * 100)}% • {cfg.typingWpm}W
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Bonus Surprise Word Option */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Gift className="w-3.5 h-3.5 text-amber-500" />
+              Bonus Từ Ngẫu Nhiên (20s Học)
+            </label>
+
+            <button
+              type="button"
+              onClick={() => setEnableRandomBonus(!enableRandomBonus)}
+              className={`w-full p-2.5 rounded-xl border text-left transition flex items-center justify-between ${
+                enableRandomBonus
+                  ? 'border-amber-400 bg-amber-50/80 text-amber-950 ring-1 ring-amber-400'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <div className="pr-1">
+                <div className="text-xs font-bold flex items-center gap-1 text-amber-900">
+                  <span>🎁 Chen 1-2 từ bonus bất ngờ</span>
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  {enableRandomBonus ? 'Cho 20s ghi nhớ nhanh giữa trận' : 'Đang tắt (chỉ đấu từ trong bộ)'}
+                </div>
+              </div>
+              <div
+                className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
+                  enableRandomBonus ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                {enableRandomBonus ? 'BẬT' : 'TẮT'}
+              </div>
+            </button>
           </div>
         </div>
 
         {/* Launch Button */}
-        <div className="pt-1">
+        <div className="pt-0.5">
           <button
             type="button"
             onClick={handleLaunchMatch}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-md shadow-emerald-200 hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-98"
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-2xl shadow-sm hover:shadow transition flex items-center justify-center gap-2 active:scale-98"
           >
             <Play className="w-4 h-4 fill-white" />
             Bắt Đầu Trận Đấu 1v1 Ngay

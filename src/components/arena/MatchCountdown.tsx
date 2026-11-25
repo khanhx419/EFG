@@ -116,20 +116,20 @@ export const MatchCountdown: React.FC<MatchCountdownProps> = ({
           />
         </div>
 
-        <div className="p-6 sm:p-10 text-center space-y-6">
+        <div className="p-4 sm:p-6 text-center space-y-3.5">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
             <Shuffle className="w-3.5 h-3.5 animate-spin" />
             <span>Thuật toán Vocab-Dex • {levelTitle} ({selection.prepared.length} từ)</span>
           </div>
 
           {/* Big Countdown Number */}
-          <div className="relative flex items-center justify-center my-2">
-            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-xl ring-8 ring-emerald-50">
+          <div className="relative flex items-center justify-center my-1">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-lg ring-4 ring-emerald-50">
               <span
                 key={secondsLeft}
                 className={`font-mono font-black tracking-tight animate-bounce ${
-                  secondsLeft === 0 ? 'text-3xl text-emerald-400' : 'text-5xl sm:text-6xl'
+                  secondsLeft === 0 ? 'text-2xl text-emerald-400' : 'text-4xl sm:text-5xl'
                 }`}
               >
                 {secondsLeft === 0 ? 'GO!' : secondsLeft}

@@ -164,9 +164,9 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-4 animate-fadeIn px-2 sm:px-0">
+    <div className="w-full max-w-4xl mx-auto space-y-2.5 animate-fadeIn px-2 sm:px-0">
       {/* Top Header: Scores & Phase Indicator */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
@@ -213,7 +213,7 @@ export const MatchPhase4MCQ: React.FC<MatchPhase4MCQProps> = ({
 
       {/* Question Card */}
       {q && (
-        <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm space-y-5">
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3.5">
           <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">

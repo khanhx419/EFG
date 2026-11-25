@@ -5,6 +5,7 @@ import { MatchLobby } from './MatchLobby';
 import { MatchCountdown } from './MatchCountdown';
 import { MatchPhase1Memo } from './MatchPhase1Memo';
 import { MatchPhase2Match } from './MatchPhase2Match';
+import { MatchBonusMemo } from './MatchBonusMemo';
 import { MatchPhase3Spell } from './MatchPhase3Spell';
 import { MatchPhase4MCQ } from './MatchPhase4MCQ';
 import { MatchResultModal } from './MatchResultModal';
@@ -56,6 +57,11 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
   const [currentBatchIndex, setCurrentBatchIndex] = useState<number>(0);
   const [timePerQuestion, setTimePerQuestion] = useState<number>(10);
 
+  // Bonus surprise word settings (1-2 new words with 20s study period)
+  const [enableRandomBonus, setEnableRandomBonus] = useState<boolean>(true);
+  const [bonusWords, setBonusWords] = useState<VocabWord[]>([]);
+  const [hasBonusTriggeredInBatch, setHasBonusTriggeredInBatch] = useState<boolean>(false);
+
   // Match score accumulator
   const [playerScore, setPlayerScore] = useState<number>(0);
   const [botScore, setBotScore] = useState<number>(0);
@@ -75,7 +81,7 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     mode: 'pvp_bot' | 'custom_deck',
     title: CEFRLevel | 'Custom',
     count: WordLengthMode,
-    customSettings?: { perRoundCount?: number; timePerQuestion?: number }
+    customSettings?: { perRoundCount?: number; timePerQuestion?: number; enableRandomBonus?: boolean }
   ) => {
     setCandidatePool(pool);
     setAllMatchWords([]);
@@ -88,6 +94,9 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     setBatchSize(bSize);
     setCurrentBatchIndex(0);
     setTimePerQuestion(customSettings?.timePerQuestion || 10);
+    setEnableRandomBonus(customSettings?.enableRandomBonus !== false);
+    setBonusWords([]);
+    setHasBonusTriggeredInBatch(false);
 
     setPlayerScore(0);
     setBotScore(0);
@@ -103,16 +112,30 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
   const handleCountdownReady = (preparedWords: VocabWord[]) => {
     setAllMatchWords(preparedWords);
     setCurrentBatchIndex(0);
+    setBonusWords([]);
+    setHasBonusTriggeredInBatch(false);
     setPhase('phase1_memo');
   };
 
-  // Current batch slice
+  // Current batch slice (including any bonus words injected)
   const currentBatchWords = React.useMemo(() => {
     if (allMatchWords.length === 0) return [];
     const start = currentBatchIndex * batchSize;
     const end = Math.min(start + batchSize, allMatchWords.length);
-    return allMatchWords.slice(start, end);
-  }, [allMatchWords, currentBatchIndex, batchSize]);
+    const baseSlice = allMatchWords.slice(start, end);
+
+    // Merge bonus words if triggered for this batch
+    if (bonusWords.length > 0) {
+      const merged = [...baseSlice];
+      bonusWords.forEach((bw) => {
+        if (!merged.some((w) => w.id === bw.id)) {
+          merged.push(bw);
+        }
+      });
+      return merged;
+    }
+    return baseSlice;
+  }, [allMatchWords, currentBatchIndex, batchSize, bonusWords]);
 
   const totalBatches = Math.max(1, Math.ceil(allMatchWords.length / batchSize));
 
@@ -121,12 +144,35 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     setPhase('phase2_matching');
   };
 
-  // Phase 2 -> Phase 3
+  // Phase 2 -> Check for Random Bonus OR advance directly to Phase 3
   const handlePhase2Complete = (pScore: number, bScore: number, comboVal: number) => {
     setPlayerScore(pScore);
     setBotScore(bScore);
     setCurrentCombo(comboVal);
     setMaxCombo((prev) => Math.max(prev, comboVal));
+
+    // Check if random bonus is enabled and hasn't triggered yet in this sub-round
+    if (enableRandomBonus && !hasBonusTriggeredInBatch) {
+      const existingIds = new Set(allMatchWords.map((w) => w.id));
+      const candidates = vocabularies.filter((w) => !existingIds.has(w.id));
+
+      if (candidates.length > 0) {
+        const countToPick = Math.min(candidates.length, Math.random() > 0.4 ? 2 : 1);
+        const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+        const picked = shuffled.slice(0, countToPick);
+
+        setBonusWords(picked);
+        setHasBonusTriggeredInBatch(true);
+        setPhase('bonus_memo');
+        return;
+      }
+    }
+
+    setPhase('phase3_spelling');
+  };
+
+  // Bonus Memo (20s) -> Phase 3
+  const handleBonusMemoComplete = () => {
     setPhase('phase3_spelling');
   };
 
@@ -155,12 +201,13 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     // Check if there are more batches left
     const nextBatchIndex = currentBatchIndex + 1;
     if (nextBatchIndex * batchSize < allMatchWords.length) {
-      // Advance to next batch: Start Memo phase for next sub-round
       setCurrentBatchIndex(nextBatchIndex);
+      setBonusWords([]);
+      setHasBonusTriggeredInBatch(false);
       setPhase('phase1_memo');
     } else {
       // All batches complete! Final score and stats
-      const totalWords = allMatchWords.length > 0 ? allMatchWords.length : wordCount;
+      const totalWords = currentBatchWords.length > 0 ? allMatchWords.length + bonusWords.length : wordCount;
       const incorrectCount = matchWordStats.filter((s) => s.wasIncorrect).length;
       const accuracy = Math.round(
         Math.max(20, ((totalWords - incorrectCount) / Math.max(1, totalWords)) * 100)
@@ -202,8 +249,8 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
     <div className="w-full">
       {/* Sub-round batch indicator if multiple batches */}
       {totalBatches > 1 && phase.startsWith('phase') && (
-        <div className="max-w-3xl mx-auto mb-2 text-center">
-          <span className="inline-block text-[11px] font-bold px-3 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
+        <div className="max-w-3xl mx-auto mb-1 text-center">
+          <span className="inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white shadow-xs">
             Đợt học {currentBatchIndex + 1}/{totalBatches} ({currentBatchWords.length} từ)
           </span>
         </div>
@@ -247,6 +294,14 @@ export const ArenaGame: React.FC<ArenaGameProps> = ({
           initialPlayerScore={playerScore}
           initialBotScore={botScore}
           timePerQuestion={timePerQuestion}
+        />
+      )}
+
+      {phase === 'bonus_memo' && (
+        <MatchBonusMemo
+          bonusWords={bonusWords}
+          onComplete={handleBonusMemoComplete}
+          accentPreference={accentPreference}
         />
       )}
 

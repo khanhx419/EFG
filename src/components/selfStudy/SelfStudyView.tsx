@@ -126,7 +126,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
   // Create Custom Deck
   const handleCreateDeck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeckName.trim() || selectedWordIds.length < 3) return;
+    if (!newDeckName.trim() || selectedWordIds.length < 1) return;
 
     const newDeck: CustomDeck = {
       id: `deck_${Date.now()}`,
@@ -548,10 +548,10 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
 
               <button
                 onClick={() => setIsCreatingDeck(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-rose-500 text-slate-500 hover:text-white border border-slate-200 hover:border-rose-500 transition shadow-xs"
                 title="Đóng (X)"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 stroke-[3]" />
               </button>
             </div>
 
@@ -637,9 +637,9 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-slate-700">
-                    Chọn từ vựng ({selectedWordIds.length}/30 từ đã chọn)
+                    Chọn từ vựng ({selectedWordIds.length} từ đã chọn)
                   </label>
-                  <span className="text-[11px] text-slate-400">Tối thiểu 3 từ, tối đa 30 từ</span>
+                  <span className="text-[11px] text-emerald-600 font-semibold">Tùy ý chọn 1 hoặc nhiều từ</span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 mb-2">
@@ -717,7 +717,7 @@ export const SelfStudyView: React.FC<SelfStudyViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!newDeckName.trim() || selectedWordIds.length < 3}
+                  disabled={!newDeckName.trim() || selectedWordIds.length < 1}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl shadow-xs transition"
                 >
                   Lưu bộ đề ({selectedWordIds.length} từ)

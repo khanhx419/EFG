@@ -47,15 +47,15 @@ export const MatchResultModal: React.FC<MatchResultModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
       <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Nút X đóng popup ở góc trên bên phải */}
+        {/* Nút X đóng popup ở góc trên bên phải - rõ nét, nổi bật */}
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 text-white flex items-center justify-center transition"
+          className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-black/40 hover:bg-rose-600 text-white flex items-center justify-center transition border border-white/40 shadow-md"
           aria-label="Đóng popup"
           title="Đóng (X)"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4 stroke-[3]" />
         </button>
 
         {/* Banner */}

@@ -7,6 +7,7 @@ export type GamePhase =
   | 'countdown'       // Đếm ngược 5s & thuật toán xáo trộn từ vựng theo Vocab-Dex
   | 'phase1_memo'     // Giai đoạn 1: Ghi nhớ (60s)
   | 'phase2_matching' // Giai đoạn 2: Nối từ & Nghĩa
+  | 'bonus_memo'      // Vòng bonus ngẫu nhiên chen vào (1-2 từ mới, 20s học)
   | 'phase3_spelling' // Giai đoạn 3: Viết từ theo nghĩa / Dictation
   | 'phase4_context'  // Giai đoạn 4: Chọn từ theo ngữ cảnh (MCQ)
   | 'result';

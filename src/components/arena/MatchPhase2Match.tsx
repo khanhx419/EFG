@@ -216,9 +216,9 @@ export const MatchPhase2Match: React.FC<MatchPhase2MatchProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-4 animate-fadeIn px-2 sm:px-0">
+    <div className="w-full max-w-4xl mx-auto space-y-2.5 animate-fadeIn px-2 sm:px-0">
       {/* Top Header: Scores & Phase Indicator */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">

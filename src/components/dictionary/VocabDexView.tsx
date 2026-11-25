@@ -82,7 +82,7 @@ export const VocabDexView: React.FC<VocabDexViewProps> = ({
   }, [vocabularies, selectedLevel, filterType, searchQuery]);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-4xl mx-auto space-y-3 px-2 sm:px-0">
       {/* Quick Lookup Banner (Phonetics & Stress Rules) */}
       <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-3">

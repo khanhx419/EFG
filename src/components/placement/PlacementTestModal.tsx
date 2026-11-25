@@ -179,9 +179,10 @@ export const PlacementTestModal: React.FC<PlacementTestModalProps> = ({
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition"
+            className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-rose-500 text-slate-500 hover:text-white border border-slate-200 hover:border-rose-500 transition shadow-xs"
+            title="Đóng (X)"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 stroke-[3]" />
           </button>
         </div>
 

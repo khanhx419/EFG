@@ -218,9 +218,9 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-4 animate-fadeIn px-2 sm:px-0">
+    <div className="w-full max-w-4xl mx-auto space-y-2.5 animate-fadeIn px-2 sm:px-0">
       {/* Top Header: Scores & Phase Indicator */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
@@ -266,7 +266,7 @@ export const MatchPhase3Spell: React.FC<MatchPhase3SpellProps> = ({
       />
 
       {/* Main Spelling Card */}
-      <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm space-y-5">
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3.5">
         {/* Top bar in card: Dictation toggle and Skip button */}
         <div className="flex items-center justify-between gap-2">
           {/* Dictation Mode Toggle for High Levels */}
